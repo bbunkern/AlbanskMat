@@ -10,6 +10,8 @@ const SOK = {
   "Potatis": { q: "potatis", ord: /potatis/i, utom: ["chips","mos","gratäng","pulver","klyft","pommes","rösti","sallad","bullar","wedges","kroket","gnocchi","sötpotatis","bröd","pizza","soppa","lefse","stomp","dip","ost"] },
   "Matvete": { q: "matvete", ord: /matvete|^vete\b|vetekärn/i, utom: ["mjöl","sallad","bulgur"] },
   "Kvarg": { q: "kvarg", ord: /kvarg/i, utom: ["pudding","dessert","glass","bar"] },
+  "Köttfärs": { q: "köttfärs", ord: /köttfärs|blandfärs/i, utom: ["vego","veg ","soja","växt","oumph","quorn","burgare","biff","bullar","lasagne","sås","pirog","färdig","gratäng","pasta","kycklingfärs","fiskfärs","laxfärs","kryddmix","mix","tacos","bolognese","paj"] },
+  "Nötfärs": { q: "nötfärs", ord: /nötfärs/i, utom: ["vego","veg ","soja","växt","burgare","biff","bullar","lasagne","sås","pirog","färdig","gratäng","pasta","kryddmix","mix","tacos","bolognese","paj"] },
 };
 const VEGO = /vego|vegan|växtbaserad|oumph|quorn|anamma|planti|hälsans kök|green ?deli|sojafärs|sojabit|sojastrim/;
 const PROTEIN = [
