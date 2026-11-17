@@ -250,9 +250,9 @@ const KALLOR = ["ica", "icaonline", "hemkop", "lidl"];
 const SOKORD = {
   Lax: /^(färsk |fryst |svensk |norsk |hel )?lax|laxfil|laxsida|laxbit|laxrygg|(kallrökt|gravad|varmrökt) lax/i,
   Potatis: /potatis/i, Matvete: /matvete|^vete\b/i, Kvarg: /kvarg/i,
-  Köttfärs: /köttfärs|blandfärs/i, Nötfärs: /nötfärs/i,
+  Köttfärs: /köttfärs|blandfärs|fläsk ?(&|och) ?nötfärs/i, Nötfärs: /^(?!.*fläsk).*nötfärs/i,
 };
-const INTE_FARS = /vego|soja|växt|oumph|quorn|burgare|biff|bullar|lasagne|sås|pirog|färdig|gratäng|pasta|kycklingfärs|fiskfärs|laxfärs|krydd|mix|tacos|bolognese|paj|katt|hund/i;
+const INTE_FARS = /soppa|vego|soja|växt|oumph|quorn|burgare|biff|bullar|lasagne|sås|pirog|färdig|gratäng|pasta|kycklingfärs|fiskfärs|laxfärs|krydd|mix|tacos|bolognese|paj|katt|hund/i;
 // Riktigt kött: rent kött och fisk – hela bitar och färs, inget processat och ingen ost/mejeri/ägg.
 const HEL_RA = /kyckling|kalkon|lax|torsk|sej|kolja|pollock|fiskfil|tonfisk|makrill|sill|räk|fläskfil|ytterfil|kotlett|karré|fläsklägg|sidfläsk|fläskkött|fläskbog|biff|entrecôte|entrecote|oxfil|fransyska|högrev|nötstek|nötkött|rostbiff|lammstek|lammfil|nötfärs|köttfärs|blandfärs|fläskfärs|kycklingfärs|lammfärs/i;
 // Vegetariskt: allt utan kött/fisk, inklusive mejeri och ägg.
