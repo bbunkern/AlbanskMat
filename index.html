@@ -37,8 +37,30 @@
   .lista { background: var(--kort); border-radius: 16px; overflow: hidden; }
   .rad { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--linje); }
   .rad:last-child { border-bottom: 0; }
-  a.rad { color: inherit; text-decoration: none; cursor: pointer; }
-  a.rad:hover, a.rad:active { background: var(--linje); }
+  .rad.klickbar { cursor: pointer; }
+  .rad.klickbar:hover, .rad.klickbar:active { background: var(--linje); }
+  .ark { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; }
+  .ark-bg { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
+  .ark-panel { position: relative; width: 100%; max-width: 760px; max-height: 88vh; overflow-y: auto; background: var(--bg);
+    border-radius: 20px 20px 0 0; padding: 18px 16px 28px; box-shadow: 0 -4px 24px rgba(0,0,0,.25); }
+  @media (min-width: 761px) { .ark { align-items: center; } .ark-panel { border-radius: 20px; max-height: 80vh; } }
+  .ark-topp { display: flex; gap: 12px; align-items: flex-start; }
+  .ark-topp h2 { margin: 0; flex: 1; font-size: 19px; line-height: 1.3; }
+  .stang { flex: none; border: 0; background: var(--linje); color: var(--text); width: 34px; height: 34px; border-radius: 50%;
+    font-size: 16px; cursor: pointer; }
+  .ark h3 { font-size: 15px; margin: 18px 0 6px; }
+  .ark .kort-ruta { font-size: 14px; line-height: 1.5; }
+  .naringstabell { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .naringstabell td { padding: 7px 0; border-bottom: 1px solid var(--linje); }
+  .naringstabell tr:last-child td { border-bottom: 0; }
+  .naringstabell td:last-child { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .naringstabell tr.mark td { color: var(--gron); }
+  .nyckeltal { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+  .nyckeltal div { background: var(--kort); border-radius: 12px; padding: 10px; text-align: center; }
+  .nyckeltal b { display: block; font-size: 18px; color: var(--gron); }
+  .nyckeltal span { font-size: 11px; color: var(--mjuk); }
+  .ark .kalla { color: var(--svag); font-size: 12px; margin-top: 16px; }
+  .ark .kalla a { color: var(--mjuk); }
   .nr { width: 20px; text-align: center; font-weight: 700; color: var(--svag); font-size: 14px; flex: none; }
   .rad.topp .nr { color: var(--gron); }
   .mitt { flex: 1; min-width: 0; }
@@ -204,17 +226,25 @@
     </div>
   </section>
 
+  <div id="ark" class="ark" hidden role="dialog" aria-modal="true" aria-labelledby="ark-namn">
+    <div class="ark-bg" data-stang></div>
+    <div class="ark-panel">
+      <div class="ark-topp"><h2 id="ark-namn"></h2><button class="stang" data-stang aria-label="Stäng">✕</button></div>
+      <div id="ark-innehall"></div>
+    </div>
+  </div>
+
   <div id="fel" class="fel"></div>
   <div class="fot">ICA Nära Roslagstull · ICA Supermarket Vanadis · Hemköp Birger Jarlsgatan · Hemköp Matglädjen · Lidl Sveavägen.
-    Protein och kcal kommer från varans näringsdeklaration hos Hemköp och ICA Handla. Värden märkta ≈ är uppskattade från typiska värden (Lidl och ICA:s butikserbjudanden visar ingen näringsdeklaration). Tryck på en vara för att se innehållet hos butiken. Sökningarna använder e-handelspriser, som kan skilja sig lite från butiken.</div>
+    Protein och kcal kommer från varans näringsdeklaration hos Hemköp och ICA Handla. Värden märkta ≈ är uppskattade från typiska värden (Lidl och ICA:s butikserbjudanden visar ingen näringsdeklaration). Tryck på en vara för att se innehållsförteckning och näringsvärden. Sökningarna använder e-handelspriser, som kan skilja sig lite från butiken.</div>
 </div>
 
 <script>
-const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c"];
-// En rad blir en länk till produktsidan (där innehållsförteckning och näringsvärden finns) när länk finns.
-const radStart = (x, klass = "") => x.u && /^https:\/\//.test(x.u)
-  ? `<a class="rad ${klass}" href="${esc(x.u)}" target="_blank" rel="noopener">` : `<div class="rad ${klass}">`;
-const radSlut = x => x.u && /^https:\/\//.test(x.u) ? `</a>` : `</div>`;
+const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c", "k"];
+// Varje rad går att trycka på: då visas innehållsförteckning och näringsvärden i en ruta på sidan.
+let RADER = [];
+const radStart = (x, klass = "") => { RADER.push(x); return `<div class="rad klickbar ${klass}" data-vara="${RADER.length - 1}" role="button" tabindex="0">`; };
+const radSlut = () => `</div>`;
 const ungefar = x => x.n === 1 ? "" : `<span title="Uppskattat – butiken visar ingen näringsdeklaration">≈ </span>`;
 const KALLOR = ["ica", "icaonline", "hemkop", "lidl"];
 const SOKORD = {
@@ -271,6 +301,7 @@ function data() {
 function render() {
   const d = data();
   if (!d) return;
+  RADER = [];
   // Vardagsmat: Riktigt kött / Vegetariskt (protein per krona) eller Carbs (kcal per krona)
   const RUBRIK = { hel: "Riktigt kött – protein per krona", vego: "Vegetariskt protein per krona", carbs: "Carbs – mest energi per krona" };
   const FORKL = {
@@ -364,6 +395,55 @@ document.querySelectorAll("#proteintyp button").forEach(b => b.onclick = () => {
 $("datumval").onchange = async e => { valt = e.target.value; await laddaDag(valt); render(); };
 
 function status(text) { $("status").hidden = !text; $("status").textContent = text || ""; }
+
+// ---------- Innehållsruta: ingredienser och näringsvärden (skrapade från butikerna) ----------
+let naringCache = null;
+const kallaNamn = k => k?.startsWith("hemkop:") ? "Hemköp" : k?.startsWith("ica:") ? "ICA Handla" : null;
+async function visaVara(x) {
+  $("ark-namn").textContent = x.v;
+  $("ark-innehall").innerHTML = `<div class="tom">Hämtar innehåll…</div>`;
+  $("ark").hidden = false; document.body.style.overflow = "hidden";
+  if (!naringCache) naringCache = (await hamta("data/naring.json")) || {};
+  if (!x.k && x.u) { const m = x.u.match(/hemkop\.se\/produkt\/(.+)$/) || null, i = x.u.match(/handlaprivatkund\.ica\.se\/.*\/products\/[^/]+\/(\d+)$/);
+    x.k = m ? "hemkop:" + m[1] : i ? "ica:" + i[1] : null; }
+  const v = x.k ? naringCache[x.k] : null;
+  const info = v && v[2] && typeof v[2] === "object" ? v[2] : null;
+  const p100 = x.pk && x.kg ? x.pk * x.kg / 10 : null;
+  const tal = [
+    x.pk ? `<div><b>${ungefar(x)}${x.pk.toFixed(1)}</b><span>g protein/kr</span></div>` : "",
+    x.kk ? `<div><b>${ungefar(x)}${x.kk}</b><span>kcal/kr</span></div>` : "",
+    x.kg ? `<div><b>${kr(x.kg).replace(" kr", "")}</b><span>kr/kg</span></div>` : "",
+  ].join("");
+  let html = meta(x) + (tal ? `<div class="nyckeltal">${tal}</div>` : "");
+  if (info?.i) html += `<h3>Ingredienser</h3><div class="kort-ruta">${esc(info.i)}</div>`;
+  const rader = info?.t?.length ? info.t : v ? [v[1] != null && ["Energi", v[1] + " kcal"], v[0] != null && ["Protein", String(v[0]).replace(".", ",") + " g"]].filter(Boolean) : [];
+  if (rader.length) {
+    html += `<h3>Näringsvärde per ${esc(info?.b || "100 g")}</h3><div class="kort-ruta"><table class="naringstabell">${rader.map(([n, val]) =>
+      `<tr class="${/^protein/i.test(n) ? "mark" : ""}"><td>${esc(n)}</td><td>${esc(val)}</td></tr>`).join("")}</table></div>`;
+  }
+  if (info?.u) html += `<h3>Ursprung</h3><div class="kort-ruta">${esc(info.u)}</div>`;
+  if (!info?.i && !rader.length) {
+    html += `<h3>Innehåll</h3><div class="kort-ruta">${kallaNamn(x.k) ? "Innehållsförteckningen har inte hämtats än – den kommer med i en av de närmaste skanningarna."
+      : "Butiken visar ingen innehållsförteckning eller näringsdeklaration för den här varan på nätet."}
+      ${p100 ? `<br><br>Uppskattat: ≈ ${p100.toFixed(0)} g protein per 100 g, utifrån typiska värden för varutypen.` : ""}</div>`;
+  } else if (info && !info.i) {
+    html += `<h3>Ingredienser</h3><div class="kort-ruta">Butiken anger ingen ingrediensförteckning (ofta en ren råvara).</div>`;
+  }
+  const kalla = kallaNamn(x.k) || (/^Lidl/.test(x.b) ? "Lidl" : /^ICA/.test(x.b) ? "ICA" : "butiken");
+  html += `<div class="kalla">Uppgifter hämtade från ${esc(kalla)}.${x.u && /^https:\/\//.test(x.u) ? ` <a href="${esc(x.u)}" target="_blank" rel="noopener">Öppna hos butiken</a>` : ""}</div>`;
+  $("ark-innehall").innerHTML = html;
+}
+function stangVara() { $("ark").hidden = true; document.body.style.overflow = ""; }
+document.addEventListener("click", e => {
+  if (e.target.closest("[data-stang]")) return stangVara();
+  const rad = e.target.closest("[data-vara]");
+  if (rad && RADER[+rad.dataset.vara]) visaVara(RADER[+rad.dataset.vara]);
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !$("ark").hidden) return stangVara();
+  const rad = e.target.closest?.("[data-vara]");
+  if (rad && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); visaVara(RADER[+rad.dataset.vara]); }
+});
 
 // ---------- Kortdatum (server: Cloudflare Worker, lösenordsskyddad) ----------
 const API = "https://albanskmat-server.albanskmat-server.workers.dev";

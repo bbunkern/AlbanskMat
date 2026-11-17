@@ -84,6 +84,8 @@ function post(v, e, p, o, kg, st, b, g = "", i = "") { const r = p && o && o > p
 // Näringsvärden från etiketten (cache: "kalla:id" -> [protein per 100 g, kcal per 100 g]).
 const NARING = (typeof window !== "undefined" && window.__NARING) || await fetch("https://raw.githubusercontent.com/bbunkern/AlbanskMat/main/data/naring.json?t=" + Date.now()).then(r => r.ok ? r.json() : {}).catch(() => ({}));
 const nyNaring = {};
+const rensa = t => String(t || "").replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, " ").trim();
+const harInfo = v => Array.isArray(v) && v[2] && typeof v[2] === "object";
 function satNaring(x, varde) {
   if (!x || !varde || !x.kg) return x;
   let [prot, kcal] = varde;
@@ -95,7 +97,7 @@ function satNaring(x, varde) {
   return x;
 }
 function slaIhop(lista) { const m = new Map(); for (const x of lista) { const k = [x.v.toLowerCase(), x.e, x.p].join("|"); if (m.has(k)) { if (!m.get(k).b.includes(x.b)) m.get(k).b += " · " + x.b; } else m.set(k, { ...x }); } return [...m.values()]; }
-const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c"];
+const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c", "k"];
 const packa = lista => lista.map(x => FALT.map(f => x[f] ?? null));
 function behall(lista) { const prot = lista.filter(x => x.pk).sort((a, b) => b.pk - a.pk).slice(0, MAX_PROTEIN); const kolh = lista.filter(x => x.c && x.kk && !x.pk).sort((a, b) => b.kk - a.kk).slice(0, MAX_KOLHYDRAT); prot.push(...kolh); const ovr = lista.filter(x => !x.pk && x.r >= MIN_RABATT).sort((a, b) => b.r - a.r).slice(0, MAX_DEALS); return packa([...prot, ...ovr]); }
 function sokTraffar(lista, s) { const DJURMAT = ["katt", "hund", "foder", "djur"]; return lista.filter(x => x.kg && s.ord.test(x.v) && ![...s.utom, ...DJURMAT].some(u => x.v.toLowerCase().includes(u))).sort((a, b) => a.kg - b.kg).slice(0, 5).map(x => FALT.map(f => x[f] ?? null)); }
@@ -130,8 +132,17 @@ if (location.hostname === "www.ica.se") {
 if (location.hostname === "handlaprivatkund.ica.se") {
   // En sökning i taget med paus emellan, och avbryt direkt om ICA visar sin bot-kontroll.
   const PAUS_MS = 3000;
-  function icaPost(p, butik) { const pris = tal(p.price?.current?.amount); if (!pris) return null; const ord = tal(p.price?.original?.amount); const lbl = p.price?.unit?.label || ""; const kg = /kg|liter/.test(lbl) ? tal(p.price?.unit?.current?.amount) : null; const x = post(p.name, kr(pris), pris, ord, kg, null, butik + " (online)"); x.id = p.retailerProductId; x.u = `https://handlaprivatkund.ica.se/stores/${ICA_EHANDEL[butik]}/products/${encodeURIComponent(p.name.toLowerCase().replace(/[^a-z0-9åäö]+/g, "-"))}/${p.retailerProductId}`; return satNaring(x, NARING["ica:" + p.retailerProductId]); }
-  function icaNaring(h) { const tal1 = re => { const m = h.match(re); return m ? parseFloat(m[1].replace(",", ".")) : null; }; const prot = tal1(/<td>Protein<\/td><td>([\d.,]+)\s*g/i), kcal = tal1(/<td>Energi \(kcal\)<\/td><td>([\d.,]+)\s*kcal/i); return prot == null && kcal == null ? null : [prot, kcal]; }
+  function icaPost(p, butik) { const pris = tal(p.price?.current?.amount); if (!pris) return null; const ord = tal(p.price?.original?.amount); const lbl = p.price?.unit?.label || ""; const kg = /kg|liter/.test(lbl) ? tal(p.price?.unit?.current?.amount) : null; const x = post(p.name, kr(pris), pris, ord, kg, null, butik + " (online)"); x.id = p.retailerProductId; x.k = "ica:" + p.retailerProductId; x.u = `https://handlaprivatkund.ica.se/stores/${ICA_EHANDEL[butik]}/products/${encodeURIComponent(p.name.toLowerCase().replace(/[^a-z0-9åäö]+/g, "-"))}/${p.retailerProductId}`; return satNaring(x, NARING["ica:" + p.retailerProductId]); }
+  function icaNaring(h) {
+    const tal1 = re => { const m = h.match(re); return m ? parseFloat(m[1].replace(",", ".")) : null; };
+    const prot = tal1(/<td>Protein<\/td><td>([\d.,]+)\s*g/i), kcal = tal1(/<td>Energi \(kcal\)<\/td><td>([\d.,]+)\s*kcal/i);
+    const sektion = rubrik => { const m = h.match(new RegExp("<h2[^>]*>" + rubrik + "</h2><div[^>]*>([\\s\\S]*?)</div></div>", "i")); return m ? m[1] : ""; };
+    const ingr = rensa(sektion("Ingredienser")).slice(0, 1500);
+    const tabell = sektion("Näringsdeklaration");
+    const rader = [...tabell.matchAll(/<tr><td>([^<]+)<\/td><td>([^<]*)<\/td>/gi)].map(m => [rensa(m[1]), rensa(m[2])]).filter(r => r[1]);
+    if (prot == null && kcal == null && !ingr && !rader.length) return null;
+    return [prot, kcal, { i: ingr || null, t: rader, b: (tabell.match(/<th>Näringsvärde<\/th><th>([^<]+)<\/th>/i) || [])[1] || "100 g" }];
+  }
   const MAX_NYA = 40;
   const ord = [...new Set([...Object.values(SOK).map(s => s.q), ...SORTIMENT])];
   const alla = [], perOrd = {};
@@ -150,7 +161,7 @@ if (location.hostname === "handlaprivatkund.ica.se") {
     await new Promise(r => setTimeout(r, PAUS_MS));
   }
   // Hämta etiketter för de bästa kandidaterna som saknar näringsdata
-  const kandidater = utanDubbletter([], alla).filter(x => (x.pk || (x.c && x.kk)) && !x.n && x.id).sort((a, b) => (b.pk || b.kk / 100) - (a.pk || a.kk / 100)).slice(0, MAX_NYA);
+  const kandidater = utanDubbletter([], alla).filter(x => (x.pk || (x.c && x.kk)) && x.id && !harInfo(NARING["ica:" + x.id])).sort((a, b) => (b.pk || b.kk / 100) - (a.pk || a.kk / 100)).slice(0, MAX_NYA);
   for (const x of kandidater) {
     if (stopp) break;
     try {
@@ -178,7 +189,7 @@ if (location.hostname === "www.hemkop.se") {
       let info = k.description || "";
       if (k.campaignType === "LOYALTY") info = ("Klubbpris " + info).trim();
       const x = post(namn, k.cartLabel || "", pris, ord, kg, st, butik, k.endDate || "", info);
-      x.id = p.code; x.u = "https://www.hemkop.se/produkt/" + p.code; alla.push(x);
+      x.id = p.code; x.k = "hemkop:" + p.code; x.u = "https://www.hemkop.se/produkt/" + p.code; alla.push(x);
     }
   });
   let sortiment = [];
@@ -189,20 +200,20 @@ if (location.hostname === "www.hemkop.se") {
       const kg = ["kg", "l"].includes(p.comparePriceUnit) ? tal(p.comparePrice) : null;
       const namn = p.name + (p.manufacturer ? ` (${p.manufacturer})` : "") + (p.displayVolume ? `, ${p.displayVolume}` : "");
       const x = post(namn, kr(pris), pris, null, kg, null, "Hemköp (online)");
-      x.id = p.code; x.u = "https://www.hemkop.se/produkt/" + p.code; sortiment.push(x);
+      x.id = p.code; x.k = "hemkop:" + p.code; x.u = "https://www.hemkop.se/produkt/" + p.code; sortiment.push(x);
     }
   });
   const hemAlla = [...slaIhop(alla), ...utanDubbletter(slaIhop(alla), sortiment)];
   // Sökorden först (få anrop), sedan etiketter för proteinkandidaterna – bäst först, lugnt, avbryt om Hemköp börjar blockera.
   for (const [rubrik, s] of Object.entries(SOK)) await forsok("Hemköp-sök " + s.q, async () => {
     const j = await fetch(`/search?q=${encodeURIComponent(s.q)}&page=0&size=100`).then(r => r.json());
-    const lista = (j.results || []).map(p => { const pris = tal(p.priceValue ?? p.price); const kg = ["kg", "l"].includes(p.comparePriceUnit) ? tal(p.comparePrice) : null; const namn = p.name + (p.manufacturer ? ` (${p.manufacturer})` : "") + (p.displayVolume ? `, ${p.displayVolume}` : ""); if (!pris) return null; const x = post(namn, kr(pris), pris, null, kg, null, "Hemköp (online)"); x.u = "https://www.hemkop.se/produkt/" + p.code; return satNaring(x, NARING["hemkop:" + p.code]); }).filter(Boolean);
+    const lista = (j.results || []).map(p => { const pris = tal(p.priceValue ?? p.price); const kg = ["kg", "l"].includes(p.comparePriceUnit) ? tal(p.comparePrice) : null; const namn = p.name + (p.manufacturer ? ` (${p.manufacturer})` : "") + (p.displayVolume ? `, ${p.displayVolume}` : ""); if (!pris) return null; const x = post(namn, kr(pris), pris, null, kg, null, "Hemköp (online)"); x.k = "hemkop:" + p.code; x.u = "https://www.hemkop.se/produkt/" + p.code; return satNaring(x, NARING["hemkop:" + p.code]); }).filter(Boolean);
     ut.sok[rubrik] = sokTraffar(lista, s);
   });
   await forsok("Hemköp näring", async () => {
     const MAX_NYA = 250;
     const sett = new Set(), koder = [];
-    for (const x of hemAlla.filter(x => (x.pk || (x.c && x.kk)) && x.id && !NARING["hemkop:" + x.id]).sort((a, b) => (b.pk || b.kk / 100) - (a.pk || a.kk / 100))) if (!sett.has(x.id)) { sett.add(x.id); koder.push(x.id); }
+    for (const x of hemAlla.filter(x => (x.pk || (x.c && x.kk)) && x.id && !harInfo(NARING["hemkop:" + x.id])).sort((a, b) => (b.pk || b.kk / 100) - (a.pk || a.kk / 100))) if (!sett.has(x.id)) { sett.add(x.id); koder.push(x.id); }
     let blockerad = false, hamtade = 0;
     await iGrupper(koder.slice(0, MAX_NYA), 2, async kod => {
       if (blockerad) return;
@@ -212,8 +223,11 @@ if (location.hostname === "www.hemkop.se") {
         const d = await r.json(); hamtade++;
         const det = (d.nutrientHeaders || []).flatMap(h => h.nutrientDetails || []);
         const hitta = (typ, enh) => { const n = det.find(x => x.nutrientTypeCode?.toLowerCase() === typ && (!enh || x.measurementUnitCode === enh)); return n ? parseFloat(String(n.quantityContained).replace(",", ".")) : null; };
-        const v = [hitta("protein"), hitta("energi", "kilokalori")];
-        if (v[0] != null || v[1] != null) nyNaring["hemkop:" + kod] = v;
+        const ENHET = { gram: "g", kilojoule: "kJ", kilokalori: "kcal", milligram: "mg", mikrogram: "µg", milliliter: "ml" };
+        const rader = det.map(n => [n.nutrientTypeCode ? n.nutrientTypeCode[0].toUpperCase() + n.nutrientTypeCode.slice(1) : "", `${["<", ">"].includes(n.measurementPrecisionCode) ? n.measurementPrecisionCode + " " : ""}${String(n.quantityContained ?? "").replace(".", ",")} ${ENHET[n.measurementUnitCode] || n.measurementUnitCode || ""}`.trim()]).filter(r => r[0] && r[1]);
+        const ingr = rensa(d.ingredients).replace(/^ingredienser:\s*/i, "").slice(0, 1500);
+        const v = [hitta("protein"), hitta("energi", "kilokalori"), { i: ingr || null, t: rader, b: d.nutritionDescription || "100 g", u: rensa(d.countryOfOriginStatement || d.tradeItemCountryOfOrigin || "").slice(0, 120) || null }];
+        if (v[0] != null || v[1] != null || ingr || rader.length) nyNaring["hemkop:" + kod] = v;
       } catch (e) {}
       await new Promise(r => setTimeout(r, 400));
     });
