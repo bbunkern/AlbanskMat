@@ -136,6 +136,7 @@
     <div class="seg liten" id="proteintyp" style="margin-top:6px">
       <button data-typ="anim" class="aktiv">🥩 Animaliskt</button>
       <button data-typ="vego">🌱 Vegetariskt</button>
+      <button data-typ="hel">🍗 Icke-slop</button>
     </div>
     <h2 id="prot-rubrik">Animaliskt protein per krona</h2>
     <p class="forkl">Hela sortimentet i dina butiker – både erbjudanden och ordinarie pris. Högst upp = mest protein för pengarna.</p>
@@ -226,7 +227,11 @@ const SOKORD = {
   Lax: /^(färsk |fryst |svensk |norsk |hel )?lax|laxfil|laxsida|laxbit|laxrygg|(kallrökt|gravad|varmrökt) lax/i,
   Potatis: /potatis/i, Matvete: /matvete|^vete\b/i, Kvarg: /kvarg/i,
 };
-const INTE_SOK = /chips|mos|gratäng|sås|paj|pudding|katt|hund|sötpotatis|sallad|färs/i;
+// Icke-slop: rent kött, fisk och ägg – hela bitar och färs, inget processat och ingen ost/mejeri.
+const HEL_RA = /kyckling|kalkon|lax|torsk|sej|kolja|pollock|fiskfil|tonfisk|makrill|sill|räk|fläskfil|ytterfil|kotlett|karré|fläsklägg|sidfläsk|fläskkött|fläskbog|biff|entrecôte|entrecote|oxfil|fransyska|högrev|nötstek|nötkött|rostbiff|lammstek|lammfil|nötfärs|köttfärs|blandfärs|fläskfärs|kycklingfärs|lammfärs|(^|[^a-zåäö])ägg($|[^a-zåäö])/i;
+const HEL_INTE = /ost|kvarg|keso|cottage|skyr|yoghurt|mjölk|nugget|burgare|bullar|korv|bacon|skinka|kassler|pålägg|pastej|salami|kebab|schnitzel|cordon|panerad|griljerad|fiskpinn|crisp|tempura|krokett|färdig|grillad|kokt|stekt|rökt|gravad|marinerad|i sås|sallad|wrap|pizza|paj|soppa|röra|spread|chorizo|salsiccia|färskkorv|pulled|strimlad.*(stekt|grillad)|kaviar|rom |pudding|dressing|krydd|gryta|lasagne|pasta|piroger|dumplings|gyoza|vår?rull|sushi|rätt|månader|från \d|\d år|stroganoff|risotto|mos|grönsak|tagliatelle|nudlar|spaghetti|pannbiff|mortadella|skivad|deli|port\b|\/1 ?p\b|1p\b|biffar|hamburg|dafgårds|gratäng|buffalo|bbq|teriyaki|glaserad|tikka|tandoori/i;
+const arHel = x => x.a === true && HEL_RA.test(x.v) && !HEL_INTE.test(x.v);
+const INTE_SOK =/chips|mos|gratäng|sås|paj|pudding|katt|hund|sötpotatis|sallad|färs/i;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const kr = x => x == null ? "–" : x.toFixed(2).replace(".", ",") + " kr";
@@ -263,9 +268,9 @@ function render() {
   const d = data();
   if (!d) return;
   // Protein
-  const prot = d.poster.filter(x => x.pk && (typ === "anim" ? x.a : x.a === false))
+  const prot = d.poster.filter(x => x.pk && (typ === "anim" ? x.a : typ === "hel" ? arHel(x) : x.a === false))
                       .sort((a, b) => b.pk - a.pk).slice(0, 40);
-  $("prot-rubrik").textContent = typ === "anim" ? "Animaliskt protein per krona" : "Vegetariskt protein per krona";
+  $("prot-rubrik").textContent = typ === "anim" ? "Animaliskt protein per krona" : typ === "hel" ? "Icke-slop: rent kött & fisk per krona" : "Vegetariskt protein per krona";
   const bast = prot[0]?.pk || 1;
   $("protein-lista").className = "lista" + (typ === "vego" ? " vego" : "");
   $("protein-lista").innerHTML = prot.length ? prot.map((x, i) => `
