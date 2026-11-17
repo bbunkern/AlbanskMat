@@ -143,25 +143,12 @@
     <h2 id="prot-rubrik">Riktigt kött – protein per krona</h2>
     <p class="forkl" id="prot-forkl">Hela sortimentet i dina butiker – både erbjudanden och ordinarie pris. Högst upp = mest protein för pengarna.</p>
     <div id="protein-lista"></div>
-
-    <h2>🔎 Mina sökningar</h2>
-    <p class="forkl">Billigaste kilopriset i hela sortimentet och bland erbjudandena.</p>
-    <div class="sokgrid" id="sok"></div>
   </section>
 
   <section id="flik-deals" hidden>
-    <h2>Veckans bästa deals</h2>
-    <p class="forkl">Alla erbjudanden med minst 20 % rabatt, störst rabatt först.</p>
-    <div class="verktyg">
-      <input id="sokfalt" type="search" placeholder="Sök vara…" autocomplete="off">
-      <div class="kedjor" id="kedjor">
-        <button data-k="" class="aktiv">Alla</button>
-        <button data-k="ica">ICA</button>
-        <button data-k="hemkop">Hemköp</button>
-        <button data-k="lidl">Lidl</button>
-      </div>
-    </div>
-    <div id="deals-lista"></div>
+    <h2>🔎 Mina sökningar</h2>
+    <p class="forkl">Billigaste kilopriset i hela sortimentet och bland erbjudandena.</p>
+    <div class="sokgrid" id="sok"></div>
   </section>
 
   <section id="flik-kortdatum" hidden>
@@ -255,7 +242,7 @@ const kr = x => x == null ? "–" : x.toFixed(2).replace(".", ",") + " kr";
 const tillObj = rad => Object.fromEntries(FALT.map((f, i) => [f, rad[i]]));
 const kedja = b => /^ICA/.test(b) ? "ica" : /^Hemköp/.test(b) ? "hemkop" : /^Lidl/.test(b) ? "lidl" : "";
 
-let scans = [], valt = null, flik = "protein", typ = "hel", kedjefilter = "", sokord = "";
+let scans = [], valt = null, flik = "protein", typ = "hel";
 
 function chips(butiker) {
   return String(butiker || "").split(" · ").map(b => `<span class="chip ${kedja(b)}">${esc(b)}</span>`).join("");
@@ -339,18 +326,6 @@ function render() {
       ${radSlut(x)}`).join("") : `<div class="tom">Inget hittat.</div>`}</div></div>`;
   }).join("");
 
-  // Bra deals
-  const deals = d.poster.filter(x => x.r >= 20)
-    .filter(x => !kedjefilter || String(x.b).split(" · ").some(b => kedja(b) === kedjefilter))
-    .filter(x => !sokord || x.v.toLowerCase().includes(sokord))
-    .sort((a, b) => b.r - a.r);
-  $("deals-lista").className = "lista";
-  $("deals-lista").innerHTML = deals.length ? deals.map(x => `
-    ${radStart(x)}
-      <div class="mitt"><div class="namn">${esc(x.v)}</div>${meta(x)}</div>
-      <div class="hoger"><span class="rabatt">-${x.r}%</span></div>
-    ${radSlut(x)}`).join("") : `<div class="tom">Inga deals matchar.</div>`;
-
   $("fel").innerHTML = d.fel.length ? "⚠ " + d.fel.map(esc).join("<br>⚠ ") : "";
   const s = scans.find(s => s.id === valt);
   $("uppd").textContent = `Scan ${formatera(s.id)}${d.tid ? " kl " + d.tid : ""}`;
@@ -386,12 +361,6 @@ document.querySelectorAll("#proteintyp button").forEach(b => b.onclick = () => {
   document.querySelectorAll("#proteintyp button").forEach(x => x.classList.toggle("aktiv", x === b));
   render();
 });
-document.querySelectorAll("#kedjor button").forEach(b => b.onclick = () => {
-  kedjefilter = b.dataset.k;
-  document.querySelectorAll("#kedjor button").forEach(x => x.classList.toggle("aktiv", x === b));
-  render();
-});
-$("sokfalt").oninput = e => { sokord = e.target.value.trim().toLowerCase(); render(); };
 $("datumval").onchange = async e => { valt = e.target.value; await laddaDag(valt); render(); };
 
 function status(text) { $("status").hidden = !text; $("status").textContent = text || ""; }
