@@ -77,6 +77,38 @@
   .fel { color: var(--varning); font-size: 12px; margin-top: 18px; }
   .fot { color: var(--svag); font-size: 11.5px; margin-top: 26px; line-height: 1.5; }
   [hidden] { display: none !important; }
+  .chip:not(.ica):not(.hemkop):not(.lidl) { background: var(--mjuk); }
+  .kort-ruta { background: var(--kort); border-radius: 16px; padding: 14px; }
+  .knapp { font: inherit; font-size: 15px; font-weight: 700; padding: 10px 16px; border-radius: 10px; border: 0;
+    background: var(--gron); color: #fff; cursor: pointer; }
+  .knapp.sekundar { background: var(--linje); color: var(--text); }
+  .knapp:disabled { opacity: .5; cursor: default; }
+  .fota { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 18px;
+    border-radius: 14px; background: var(--gron); color: #fff; font-size: 19px; font-weight: 800; cursor: pointer; }
+  .fota input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .fota.upptagen { opacity: .6; pointer-events: none; }
+  .kd-butik { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .kd-butik select, .kd-butik input { flex: 1; min-width: 150px; font-size: 15px; padding: 9px 10px; }
+  .kd-butik input, .verktyg input[type=password] { font: inherit; border-radius: 10px; border: 1px solid var(--linje);
+    background: var(--kort); color: var(--text); }
+  .kd-status { color: var(--mjuk); font-size: 14px; margin-top: 10px; }
+  .kd-fel { color: var(--varning); font-size: 13px; margin-top: 6px; }
+  .redigera { background: var(--kort); border-radius: 16px; padding: 12px 14px; margin-bottom: 10px; }
+  .redigera .topprad { display: flex; gap: 8px; align-items: center; }
+  .redigera .topprad input { flex: 1; font-weight: 600; }
+  .redigera input, .redigera select { font: inherit; font-size: 14px; padding: 7px 9px; border-radius: 8px;
+    border: 1px solid var(--linje); background: var(--bg); color: var(--text); width: 100%; min-width: 0; }
+  .falt { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+  .falt label { font-size: 11px; color: var(--mjuk); display: flex; flex-direction: column; gap: 3px; }
+  .ta-bort { flex: none; border: 0; background: var(--linje); color: var(--text); width: 34px; height: 34px;
+    border-radius: 9px; font-size: 16px; cursor: pointer; }
+  .kd-knappar { display: flex; gap: 8px; }
+  .kd-knappar .knapp { flex: 1; }
+  .radera { border: 0; background: transparent; color: var(--svag); font-size: 15px; cursor: pointer; padding: 4px 2px 0; }
+  .radera:hover { color: var(--varning); }
+  .insikt { display: flex; justify-content: space-between; gap: 12px; }
+  .fot a { color: var(--mjuk); }
+  @media (max-width: 420px) { .falt { grid-template-columns: repeat(2, minmax(0, 1fr)); } .seg button { font-size: 13.5px; padding: 9px 3px; } }
   @media (max-width: 360px) { .sokgrid { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -94,6 +126,7 @@
     <div class="seg" role="tablist">
       <button data-flik="protein" class="aktiv">💪 Protein</button>
       <button data-flik="deals">🔥 Bra deals</button>
+      <button data-flik="kortdatum">📸 Kortdatum</button>
     </div>
   </div>
 
@@ -126,6 +159,59 @@
       </div>
     </div>
     <div id="deals-lista"></div>
+  </section>
+
+  <section id="flik-kortdatum" hidden>
+    <div id="kd-las" class="kort-ruta" hidden>
+      <h2 style="margin-top:6px">🔒 Kortdatum är låst</h2>
+      <p class="forkl">Skriv lösenordet för att logga och se dina fynd.</p>
+      <form id="kd-las-form" class="verktyg">
+        <input id="kd-losen" type="password" placeholder="Lösenord" autocomplete="current-password">
+        <button class="knapp" type="submit">Lås upp</button>
+      </form>
+      <div id="kd-las-fel" class="kd-fel"></div>
+    </div>
+
+    <div id="kd-innehall" hidden>
+      <h2>Fota &amp; logga</h2>
+      <p class="forkl">Fota kortdatumetiketter, hyllkanter eller skyltar. Bilden sparas inte – bara varorna.</p>
+      <div class="kort-ruta">
+        <label class="fota">
+          <input id="kd-fil" type="file" accept="image/*" capture="environment" multiple>
+          <span>📸 Fota</span>
+        </label>
+        <div class="kd-butik">
+          <select id="kd-butik" aria-label="Butik">
+            <option>ICA Roslagstull</option><option>ICA Vanadis</option>
+            <option>Hemköp Birger Jarl</option><option>Hemköp Matglädjen</option>
+            <option>Lidl</option><option value="__annan">Annan…</option>
+          </select>
+          <input id="kd-annan" type="text" placeholder="Vilken butik?" hidden>
+        </div>
+        <div id="kd-status" class="kd-status" hidden></div>
+      </div>
+
+      <div id="kd-granska" hidden>
+        <h2>Granska innan du sparar</h2>
+        <p class="forkl">Rätta det som blev fel och ta bort rader du inte vill ha.</p>
+        <div id="kd-kort"></div>
+        <div class="kd-knappar">
+          <button id="kd-spara" class="knapp">Spara</button>
+          <button id="kd-avbryt" class="knapp sekundar">Avbryt</button>
+        </div>
+      </div>
+
+      <h2>Senaste fynd</h2>
+      <p class="forkl">Allt du har loggat, nyast först.</p>
+      <div id="kd-lista"></div>
+
+      <div id="kd-insikter" hidden>
+        <h2>Insikter</h2>
+        <p class="forkl">Per butik, baserat på dina loggar.</p>
+        <div id="kd-insikt-lista"></div>
+      </div>
+      <p class="fot"><a href="#" id="kd-logga-ut">Lås fliken igen</a></p>
+    </div>
   </section>
 
   <div id="fel" class="fel"></div>
@@ -232,10 +318,15 @@ function formatera(id) {
 }
 
 function visaFlik(f) {
-  flik = f === "deals" ? "deals" : "protein";
+  flik = ["deals", "kortdatum"].includes(f) ? f : "protein";
   document.querySelectorAll(".seg[role=tablist] button").forEach(b => b.classList.toggle("aktiv", b.dataset.flik === flik));
   $("flik-protein").hidden = flik !== "protein";
   $("flik-deals").hidden = flik !== "deals";
+  $("flik-kortdatum").hidden = flik !== "kortdatum";
+  const kd = flik === "kortdatum";
+  $("datumval").style.visibility = kd ? "hidden" : "";
+  $("fel").hidden = kd;
+  if (kd) kortdatumStart();
 }
 
 document.querySelectorAll(".seg[role=tablist] button").forEach(b => b.onclick = () => {
@@ -243,7 +334,7 @@ document.querySelectorAll(".seg[role=tablist] button").forEach(b => b.onclick = 
   try { history.replaceState(null, "", "#" + flik); } catch (e) {}
 });
 window.addEventListener("hashchange", () => visaFlik(location.hash.slice(1)));
-visaFlik(location.hash.slice(1));
+setTimeout(() => visaFlik(location.hash.slice(1)));
 
 document.querySelectorAll("#proteintyp button").forEach(b => b.onclick = () => {
   typ = b.dataset.typ;
@@ -259,6 +350,178 @@ $("sokfalt").oninput = e => { sokord = e.target.value.trim().toLowerCase(); rend
 $("datumval").onchange = async e => { valt = e.target.value; await laddaDag(valt); render(); };
 
 function status(text) { $("status").hidden = !text; $("status").textContent = text || ""; }
+
+// ---------- Kortdatum (server: Cloudflare Worker, lösenordsskyddad) ----------
+const API = "https://albanskmat-server.albanskmat-server.workers.dev";
+const lagra = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+                set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
+let losen = lagra.get("kd-losen"), kdFynd = [], kdUtkast = [], kdStartad = false;
+
+async function api(vag, opt = {}) {
+  const r = await fetch(API + vag, { ...opt, headers: { "Content-Type": "application/json", "X-Losen": losen || "", ...(opt.headers || {}) } });
+  let j = null; try { j = await r.json(); } catch (e) {}
+  if (r.status === 401) { losen = null; lagra.set("kd-losen", null); visaLas("Fel lösenord – försök igen."); throw new Error("låst"); }
+  if (!r.ok) throw new Error(j?.fel || "Något gick fel (" + r.status + ").");
+  return j;
+}
+function visaLas(fel = "") {
+  $("kd-las").hidden = false; $("kd-innehall").hidden = true; $("kd-las-fel").textContent = fel;
+}
+async function kortdatumStart() {
+  if (!losen) return visaLas();
+  $("kd-las").hidden = true; $("kd-innehall").hidden = false;
+  if (kdStartad) return;
+  kdStartad = true;
+  try { await hamtaFynd(); } catch (e) { kdStartad = false; if (e.message !== "låst") kdStatus("⚠ " + e.message); }
+}
+$("kd-las-form").onsubmit = async e => {
+  e.preventDefault();
+  losen = $("kd-losen").value.trim();
+  if (!losen) return;
+  try { await api("/ping"); lagra.set("kd-losen", losen); $("kd-losen").value = ""; kdStartad = false; kortdatumStart(); }
+  catch (err) { if (err.message !== "låst") $("kd-las-fel").textContent = err.message; }
+};
+$("kd-logga-ut").onclick = e => { e.preventDefault(); losen = null; lagra.set("kd-losen", null); kdStartad = false; visaLas(); };
+
+// Butiksval – kommer ihåg senast använda
+const BUTIKER = ["ICA Roslagstull", "ICA Vanadis", "Hemköp Birger Jarl", "Hemköp Matglädjen", "Lidl"];
+(() => {
+  const sist = lagra.get("kd-butik");
+  if (sist && BUTIKER.includes(sist)) $("kd-butik").value = sist;
+  else if (sist) { $("kd-butik").value = "__annan"; $("kd-annan").hidden = false; $("kd-annan").value = sist; }
+})();
+$("kd-butik").onchange = () => { $("kd-annan").hidden = $("kd-butik").value !== "__annan"; if (!$("kd-annan").hidden) $("kd-annan").focus(); };
+const valdButik = () => $("kd-butik").value === "__annan" ? $("kd-annan").value.trim() : $("kd-butik").value;
+
+function kdStatus(t) { $("kd-status").hidden = !t; $("kd-status").textContent = t || ""; }
+
+function krympBild(fil) {
+  return new Promise((ok, fel) => {
+    const url = URL.createObjectURL(fil), img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, 1280 / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      ok(c.toDataURL("image/jpeg", 0.7));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); fel(new Error("Kunde inte läsa bilden.")); };
+    img.src = url;
+  });
+}
+
+$("kd-fil").onchange = async e => {
+  const filer = [...e.target.files]; e.target.value = "";
+  if (!filer.length) return;
+  const knapp = $("kd-fil").closest(".fota"); knapp.classList.add("upptagen");
+  let hittade = 0; const fel = [];
+  for (let i = 0; i < filer.length; i++) {
+    kdStatus(`Läser av bild ${i + 1} av ${filer.length}…`);
+    try {
+      const bild = await krympBild(filer[i]);
+      const r = await api("/las", { method: "POST", body: JSON.stringify({ bild }) });
+      if (r.fel) fel.push(r.fel);
+      (r.varor || []).forEach(v => kdUtkast.push(v)); hittade += (r.varor || []).length;
+    } catch (err) { if (err.message === "låst") { knapp.classList.remove("upptagen"); return; } fel.push(err.message); }
+  }
+  knapp.classList.remove("upptagen");
+  kdStatus(hittade ? `Hittade ${hittade} ${hittade === 1 ? "vara" : "varor"}.` + (fel.length ? " ⚠ " + fel.join(" ") : "")
+                   : "Hittade inga varor i bilden. Prova att fota närmare och rakt framifrån." + (fel.length ? " (" + fel.join(" ") + ")" : ""));
+  visaUtkast();
+};
+
+const UTKAST_FALT = [
+  ["varumarke", "Varumärke", "text"], ["mangd", "Mängd", "text"], ["pris", "Pris (kr)", "number"],
+  ["ordinarie_pris", "Ord. pris", "number"], ["rabatt_procent", "Rabatt %", "number"], ["kr_per_kg", "Kr/kg", "number"],
+  ["bast_fore", "Bäst före", "date"], ["protein_per_100g", "Protein/100 g", "number"],
+];
+function visaUtkast() {
+  $("kd-granska").hidden = !kdUtkast.length;
+  $("kd-spara").textContent = `Spara ${kdUtkast.length} ${kdUtkast.length === 1 ? "vara" : "varor"}`;
+  $("kd-kort").innerHTML = kdUtkast.map((v, i) => `
+    <div class="redigera" data-i="${i}">
+      <div class="topprad"><input data-f="vara" value="${esc(v.vara)}" aria-label="Vara">
+        <button class="ta-bort" data-tabort="${i}" aria-label="Ta bort">✕</button></div>
+      <div class="falt">
+        ${UTKAST_FALT.map(([f, namn, typ]) => `<label>${namn}<input data-f="${f}" type="${typ}" ${typ === "number" ? 'step="any" inputmode="decimal"' : ""} value="${esc(v[f] ?? "")}"></label>`).join("")}
+        <label>Typ<select data-f="typ">${["kortdatum", "erbjudande", "hyllpris"].map(t => `<option ${v.typ === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <label>Animaliskt<select data-f="animaliskt"><option value="">?</option><option value="true" ${v.animaliskt === true ? "selected" : ""}>Ja</option><option value="false" ${v.animaliskt === false ? "selected" : ""}>Nej</option></select></label>
+      </div>
+    </div>`).join("");
+}
+$("kd-kort").oninput = $("kd-kort").onchange = e => {
+  const el = e.target, kort = el.closest(".redigera"); if (!kort || !el.dataset.f) return;
+  const v = kdUtkast[+kort.dataset.i], f = el.dataset.f;
+  v[f] = el.type === "number" ? (el.value === "" ? null : Number(el.value)) : f === "animaliskt" ? (el.value === "" ? null : el.value === "true") : el.value;
+};
+$("kd-kort").onclick = e => { const b = e.target.closest("[data-tabort]"); if (b) { kdUtkast.splice(+b.dataset.tabort, 1); visaUtkast(); } };
+$("kd-avbryt").onclick = () => { kdUtkast = []; visaUtkast(); kdStatus(""); };
+$("kd-spara").onclick = async () => {
+  const butik = valdButik();
+  if (!butik) { kdStatus("Skriv vilken butik det är."); $("kd-annan").focus(); return; }
+  $("kd-spara").disabled = true;
+  try {
+    const r = await api("/fynd", { method: "POST", body: JSON.stringify({ butik, varor: kdUtkast }) });
+    lagra.set("kd-butik", butik);
+    kdUtkast = []; visaUtkast(); kdStatus(`Sparade ${r.sparade} ${r.sparade === 1 ? "vara" : "varor"} från ${butik}.`);
+    await hamtaFynd();
+  } catch (err) { if (err.message !== "låst") kdStatus("⚠ " + err.message); }
+  finally { $("kd-spara").disabled = false; }
+};
+
+function sedan(iso) {
+  const d = Math.floor((Date.now() - new Date(iso)) / 86400000);
+  if (d <= 0) { const t = Math.floor((Date.now() - new Date(iso)) / 3600000); return t <= 0 ? "nyss" : `för ${t} ${t === 1 ? "timme" : "timmar"} sedan`; }
+  return d === 1 ? "i går" : `för ${d} dagar sedan`;
+}
+async function hamtaFynd() {
+  const r = await api("/fynd");
+  kdFynd = r.fynd || [];
+  visaFynd();
+}
+function visaFynd() {
+  $("kd-lista").className = "lista";
+  $("kd-lista").innerHTML = kdFynd.length ? kdFynd.map(x => {
+    const namn = [x.vara, x.varumarke, x.mangd].filter(Boolean).map(esc).join(" · ");
+    const meta = `<div class="meta">${chips(x.butik)} <span class="pris">${kr(x.pris)}</span>` +
+      (x.ordinarie_pris && x.ordinarie_pris > x.pris ? ` <span class="ord">${kr(x.ordinarie_pris)}</span>` : "") +
+      (x.kr_per_kg ? ` <span>${kr(x.kr_per_kg).replace(" kr", "")} kr/kg</span>` : "") +
+      (x.typ === "kortdatum" ? ` <span class="info">Kortdatum${x.bast_fore ? " · bäst före " + esc(x.bast_fore) : ""}</span>` : x.bast_fore ? ` <span class="datum">Bäst före ${esc(x.bast_fore)}</span>` : "") +
+      ` <span class="datum">${sedan(x.tidpunkt)}</span></div>`;
+    return `<div class="rad">
+      <div class="mitt"><div class="namn">${namn}</div>${meta}</div>
+      <div class="hoger">${x.rabatt_procent ? `<span class="rabatt">-${x.rabatt_procent}%</span>` : ""}
+        <div><button class="radera" data-radera="${x.id}" aria-label="Radera">🗑</button></div></div>
+    </div>`;
+  }).join("") : `<div class="tom">Inget loggat än. Fota din första kortdatumvara!</div>`;
+
+  // Insikter: per butik (visas från 10 loggar)
+  $("kd-insikter").hidden = kdFynd.length < 10;
+  if (kdFynd.length >= 10) {
+    const per = {};
+    for (const x of kdFynd) {
+      const p = per[x.butik] ||= { antal: 0, kort: 0, rabSum: 0, rabAnt: 0 };
+      p.antal++; if (x.typ === "kortdatum") p.kort++;
+      if (x.rabatt_procent) { p.rabSum += x.rabatt_procent; p.rabAnt++; }
+    }
+    const rader = Object.entries(per).sort((a, b) => b[1].kort - a[1].kort || b[1].antal - a[1].antal);
+    $("kd-insikt-lista").className = "lista";
+    $("kd-insikt-lista").innerHTML = rader.map(([b, p], i) => `
+      <div class="rad ${i === 0 ? "topp" : ""}">
+        <div class="mitt"><div class="namn">${chips(b)}</div>
+          <div class="meta">${p.kort} kortdatumfynd · ${p.antal} loggade totalt</div></div>
+        <div class="hoger">${p.rabAnt ? `<div class="stor">${Math.round(p.rabSum / p.rabAnt)}%</div><div class="enhet">snittrabatt</div>` : `<div class="enhet">ingen rabatt</div>`}</div>
+      </div>`).join("");
+  }
+}
+$("kd-lista").onclick = async e => {
+  const b = e.target.closest("[data-radera]"); if (!b) return;
+  const x = kdFynd.find(f => String(f.id) === b.dataset.radera);
+  if (!confirm(`Radera "${x?.vara || "varan"}"?`)) return;
+  try { await api("/fynd/" + b.dataset.radera, { method: "DELETE" }); kdFynd = kdFynd.filter(f => f !== x); visaFynd(); }
+  catch (err) { if (err.message !== "låst") alert(err.message); }
+};
 
 // Data: molnskanningen (ica, hemkop, lidl) i data/senaste.json + data/historik/,
 // ICA Handla från Macen i data/icaonline.json.

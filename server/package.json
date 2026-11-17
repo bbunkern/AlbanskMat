@@ -1,0 +1,5 @@
+{
+  "name": "albanskmat-server",
+  "private": true,
+  "devDependencies": { "wrangler": "4.156.2" }
+}

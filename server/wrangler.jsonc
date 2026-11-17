@@ -1,0 +1,10 @@
+{
+  "name": "albanskmat-server",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "d1_databases": [
+    { "binding": "DB", "database_name": "albanskmat", "database_id": "1de06712-e0bd-46b4-bef8-5c7278894325" }
+  ],
+  "ai": { "binding": "AI" }
+}
