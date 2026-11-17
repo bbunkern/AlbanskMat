@@ -37,6 +37,9 @@
   .lista { background: var(--kort); border-radius: 16px; overflow: hidden; }
   .rad { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--linje); }
   .rad:last-child { border-bottom: 0; }
+  .kryss { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; font-weight: 600;
+    color: var(--text); cursor: pointer; user-select: none; }
+  .kryss input { width: 18px; height: 18px; accent-color: var(--gron); margin: 0; }
   .rad.klickbar { cursor: pointer; }
   .rad.klickbar:hover, .rad.klickbar:active { background: var(--linje); }
   .ark { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; }
@@ -162,6 +165,7 @@
       <button data-typ="vego">🌱 Vegetariskt</button>
       <button data-typ="carbs">🍚 Carbs</button>
     </div>
+    <label class="kryss" id="kryss-svensk"><input type="checkbox" id="svensk-kyckling"> Kyckling från Sverige</label>
     <h2 id="prot-rubrik">Riktigt kött – protein per krona</h2>
     <p class="forkl" id="prot-forkl">Hela sortimentet i dina butiker – både erbjudanden och ordinarie pris. Högst upp = mest protein för pengarna.</p>
     <div id="protein-lista"></div>
@@ -240,7 +244,21 @@
 </div>
 
 <script>
-const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c", "k"];
+const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c", "k", "ur"];
+// "Kyckling från Sverige": när rutan är ikryssad visas bara svensk kyckling – övrigt kött visas som vanligt.
+let baraSvenskKyckling = false;
+try { baraSvenskKyckling = localStorage.getItem("svensk-kyckling") === "1"; } catch (e) {}
+const ARKYCKLING = /kyckling/i;
+const SVENSK = /sverige|svensk|kronfågel|guldfågeln|ingelsta|lagerbergs|bosarps|kycklinggården|matriket/i;
+const UTLANDSK = /danmark|dansk|brasilien|thailand|polen|polsk|irland|tyskland|holland|nederländerna|ungern|frankrike|ukraina|kina|litauen|chile|eu-land|import/i;
+function arSvensk(x) {
+  const hk = x.u && (x.u.match(/hemkop\.se\/produkt\/(.+)$/) || [])[1];
+  const k = x.k || (hk ? "hemkop:" + hk : null);
+  const info = k && naringCache?.[k]?.[2];
+  const text = [x.v, x.ur, info?.u, info?.i].filter(Boolean).join(" ");
+  return SVENSK.test(text) && !UTLANDSK.test(text);
+}
+const kycklingOk = x => !baraSvenskKyckling || !ARKYCKLING.test(x.v) || arSvensk(x);
 // Varje rad går att trycka på: då visas innehållsförteckning och näringsvärden i en ruta på sidan.
 let RADER = [];
 const radStart = (x, klass = "") => { RADER.push(x); return `<div class="rad klickbar ${klass}" data-vara="${RADER.length - 1}" role="button" tabindex="0">`; };
@@ -342,7 +360,7 @@ function render() {
         <div class="kcal">${kr(x.kg).replace(" kr", "")}</div><div class="enhet">kr/kg</div></div>
     ${radSlut(x)}`).join("") : `<div class="tom">Inga kolhydrater i den här skanningen än.</div>`;
   } else {
-    const prot = d.poster.filter(x => x.pk && (typ === "hel" ? arHel(x) : arVego(x)))
+    const prot = d.poster.filter(x => x.pk && (typ === "hel" ? arHel(x) && kycklingOk(x) : arVego(x)))
                         .sort((a, b) => b.pk - a.pk).slice(0, 40);
     const bast = prot[0]?.pk || 1;
     $("protein-lista").innerHTML = prot.length ? prot.map((x, i) => `
@@ -405,8 +423,15 @@ setTimeout(() => visaFlik(location.hash.slice(1)));
 document.querySelectorAll("#proteintyp button").forEach(b => b.onclick = () => {
   typ = b.dataset.typ;
   document.querySelectorAll("#proteintyp button").forEach(x => x.classList.toggle("aktiv", x === b));
+  $("kryss-svensk").hidden = typ !== "hel";
   render();
 });
+$("svensk-kyckling").checked = baraSvenskKyckling;
+$("svensk-kyckling").onchange = e => {
+  baraSvenskKyckling = e.target.checked;
+  try { localStorage.setItem("svensk-kyckling", baraSvenskKyckling ? "1" : "0"); } catch (err) {}
+  render();
+};
 $("datumval").onchange = async e => { valt = e.target.value; await laddaDag(valt); render(); };
 
 function status(text) { $("status").hidden = !text; $("status").textContent = text || ""; }
