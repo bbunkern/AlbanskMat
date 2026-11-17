@@ -64,7 +64,13 @@ const KCAL = [
 const SORTIMENT = ["kyckling","kycklingfilé","kycklinglår","kalkon","nötfärs","blandfärs","fläskfärs","fläskfilé","fläskkarré","kotlett","biff","högrev","skinka","korv","bacon",
   "lax","torsk","sej","tonfisk","räkor","makrill","ägg","kvarg","keso","cottage cheese","skyr","proteinyoghurt","ost","mozzarella","halloumi","fetaost",
   "tofu","tempeh","sojafärs","vegofärs","linser","kikärtor","bönor","edamame","jordnötssmör","jordnötter","mandlar","solrosfrön","pumpakärnor",
-  "havregryn","matvete","pasta","bulgur","quinoa"];
+  "havregryn","matvete","pasta","bulgur","quinoa",
+  // Kolhydrater
+  "potatis","ris","jasminris","basmatiris","spaghetti","makaroner","penne","nudlar","couscous","bröd","knäckebröd","tortilla","gnocchi"];
+const KOLHYDRAT = /potatis|(^|[^a-zåäö])ris($|[^a-zåäö])|jasminris|basmatiris|fullkornsris|långkornigt|pasta|spaghetti|makaroner|penne|fusilli|tagliatelle|farfalle|lasagneplattor|nudlar|bulgur|couscous|quinoa|havregryn|matvete|^vete\b|knäckebröd|knäcke|(^|[^a-zåäö])bröd|limpa|tortilla|polenta|gnocchi/;
+const INTE_KOLHYDRAT = /chips|mos|gratäng|pommes|klyft|rösti|kroket|sallad|färdig|sås|kex|kakor|bullar|kanel|vetebröd|rån|dessert|glass|sötpotatis|pizza|soppa|krutong|ströbröd|smörgås|toast skagen|dip|risifrutti|risgrynsgröt|ris à la|rismjölk|riskaka|risdryck|mellanmål|puffar/;
+const arKolhydrat = namn => { const n = namn.toLowerCase(); return KOLHYDRAT.test(n) && !INTE_KOLHYDRAT.test(n) && !INTE_MAT.test(n); };
+const MAX_KOLHYDRAT = 200;
 const MAX_PROTEIN = 400;
 const INTE_MAT = /chips|glass|sås|dressing|godis|choklad|katt|hund|foder|snacks|smoothie|juice|(^|[^f])läsk|kakor|(^|[^a-zåäö])kex|toalett|tvätt|blöj|deo|påsar/;
 const r2 = x => (x == null || isNaN(x)) ? null : Math.round(x * 100) / 100;
@@ -73,7 +79,7 @@ function vikt(t) { if (!t) return null; t = String(t).toLowerCase().replace(/,/g
 function jamfor(t) { if (!t) return [null, null]; t = String(t).toLowerCase(); const p = tal(t.split("/")[0]); if (/\/\s*(kg|l\b|liter)/.test(t)) return [p, "kg"]; if (t.includes("/st")) return [p, "st"]; return [p, null]; }
 function protein(namn) { const n = namn.toLowerCase(); if (INTE_MAT.test(n)) return null; for (const [re, g0, anim] of PROTEIN) { if (re.test(n)) { const g = g0 ?? (/kokt|burk|tetra|i vatten|i tomat/.test(n) ? 7 : 21); return g >= 5 ? [g, anim] : null; } } return null; }
 function kalorier(namn) { const n = namn.toLowerCase(); if (INTE_MAT.test(n)) return null; for (const [re, k] of KCAL) if (re.test(n)) return k; return null; }
-function post(v, e, p, o, kg, st, b, g = "", i = "") { const r = p && o && o > p ? Math.round(100 * (1 - p / o)) : 0; const pr = protein(v); let pk = null, a = null; if (pr) { if (kg) pk = pr[0] * 10 / kg; else if (st && /ägg/i.test(v)) pk = 7.5 / st; if (pk) a = pr[1]; } const kc = kalorier(v); let kk = null; if (kc) { if (kg) kk = kc * 10 / kg; else if (st && /ägg/i.test(v)) kk = 84 / st; } return { v, e, p: r2(p), o: r2(o), r, kg: r2(kg), b, g, i, pk: r2(pk), a, kk: kk == null ? null : Math.round(kk) }; }
+function post(v, e, p, o, kg, st, b, g = "", i = "") { const r = p && o && o > p ? Math.round(100 * (1 - p / o)) : 0; const pr = protein(v); let pk = null, a = null; if (pr) { if (kg) pk = pr[0] * 10 / kg; else if (st && /ägg/i.test(v)) pk = 7.5 / st; if (pk) a = pr[1]; } const kc = kalorier(v); let kk = null; if (kc) { if (kg) kk = kc * 10 / kg; else if (st && /ägg/i.test(v)) kk = 84 / st; } return { v, e, p: r2(p), o: r2(o), r, kg: r2(kg), b, g, i, pk: r2(pk), a, kk: kk == null ? null : Math.round(kk), c: arKolhydrat(v) ? 1 : null }; }
 // Näringsvärden från etiketten (cache: "kalla:id" -> [protein per 100 g, kcal per 100 g]).
 const NARING = (typeof window !== "undefined" && window.__NARING) || await fetch("https://raw.githubusercontent.com/bbunkern/AlbanskMat/main/data/naring.json?t=" + Date.now()).then(r => r.ok ? r.json() : {}).catch(() => ({}));
 const nyNaring = {};
@@ -81,13 +87,13 @@ function satNaring(x, varde) {
   if (!x || !varde || !x.kg) return x;
   const [prot, kcal] = varde;
   if (prot != null) { x.pk = r2(prot * 10 / x.kg); x.n = 1; if (x.a == null) x.a = protein(x.v)?.[1] ?? null; if (prot < 5) { x.pk = null; } }
-  if (kcal != null) x.kk = Math.round(kcal * 10 / x.kg);
+  if (kcal != null) { x.kk = Math.round(kcal * 10 / x.kg); if (x.c) x.n = 1; }
   return x;
 }
 function slaIhop(lista) { const m = new Map(); for (const x of lista) { const k = [x.v.toLowerCase(), x.e, x.p].join("|"); if (m.has(k)) { if (!m.get(k).b.includes(x.b)) m.get(k).b += " · " + x.b; } else m.set(k, { ...x }); } return [...m.values()]; }
-const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n"];
+const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c"];
 const packa = lista => lista.map(x => FALT.map(f => x[f] ?? null));
-function behall(lista) { const prot = lista.filter(x => x.pk).sort((a, b) => b.pk - a.pk).slice(0, MAX_PROTEIN); const ovr = lista.filter(x => !x.pk && x.r >= MIN_RABATT).sort((a, b) => b.r - a.r).slice(0, MAX_DEALS); return packa([...prot, ...ovr]); }
+function behall(lista) { const prot = lista.filter(x => x.pk).sort((a, b) => b.pk - a.pk).slice(0, MAX_PROTEIN); const kolh = lista.filter(x => x.c && x.kk && !x.pk).sort((a, b) => b.kk - a.kk).slice(0, MAX_KOLHYDRAT); prot.push(...kolh); const ovr = lista.filter(x => !x.pk && x.r >= MIN_RABATT).sort((a, b) => b.r - a.r).slice(0, MAX_DEALS); return packa([...prot, ...ovr]); }
 function sokTraffar(lista, s) { const DJURMAT = ["katt", "hund", "foder", "djur"]; return lista.filter(x => x.kg && s.ord.test(x.v) && ![...s.utom, ...DJURMAT].some(u => x.v.toLowerCase().includes(u))).sort((a, b) => a.kg - b.kg).slice(0, 5).map(x => FALT.map(f => x[f] ?? null)); }
 function grab(h, key) { const i = h.indexOf('"' + key + '":') + key.length + 3; let d = 0, s = false, esc = false; for (let k = i; k < h.length; k++) { const c = h[k]; if (s) { if (esc) esc = false; else if (c === "\\") esc = true; else if (c === '"') s = false; continue; } if (c === '"') s = true; else if (c === "[" || c === "{") d++; else if (c === "]" || c === "}") { d--; if (d === 0) return fixJson(h.slice(i, k + 1)); } } }
 function utanDubbletter(erbj, sort) { const namn = new Set(erbj.map(x => x.v.toLowerCase())); const sedda = new Set(); return sort.filter(x => { const k = x.v.toLowerCase(); if (namn.has(k) || sedda.has(k)) return false; sedda.add(k); return true; }); }
@@ -140,7 +146,7 @@ if (location.hostname === "handlaprivatkund.ica.se") {
     await new Promise(r => setTimeout(r, PAUS_MS));
   }
   // Hämta etiketter för de bästa kandidaterna som saknar näringsdata
-  const kandidater = utanDubbletter([], alla).filter(x => x.pk && !x.n && x.id).sort((a, b) => b.pk - a.pk).slice(0, MAX_NYA);
+  const kandidater = utanDubbletter([], alla).filter(x => (x.pk || (x.c && x.kk)) && !x.n && x.id).sort((a, b) => (b.pk || b.kk / 100) - (a.pk || a.kk / 100)).slice(0, MAX_NYA);
   for (const x of kandidater) {
     if (stopp) break;
     try {
@@ -192,7 +198,7 @@ if (location.hostname === "www.hemkop.se") {
   await forsok("Hemköp näring", async () => {
     const MAX_NYA = 250;
     const sett = new Set(), koder = [];
-    for (const x of hemAlla.filter(x => x.pk && x.id && !NARING["hemkop:" + x.id]).sort((a, b) => b.pk - a.pk)) if (!sett.has(x.id)) { sett.add(x.id); koder.push(x.id); }
+    for (const x of hemAlla.filter(x => (x.pk || (x.c && x.kk)) && x.id && !NARING["hemkop:" + x.id]).sort((a, b) => (b.pk || b.kk / 100) - (a.pk || a.kk / 100))) if (!sett.has(x.id)) { sett.add(x.id); koder.push(x.id); }
     let blockerad = false, hamtade = 0;
     await iGrupper(koder.slice(0, MAX_NYA), 2, async kod => {
       if (blockerad) return;
