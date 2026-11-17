@@ -261,7 +261,20 @@ const KOLH = /potatis|(^|[^a-zåäö])ris($|[^a-zåäö])|jasminris|basmatiris|f
 const arKolh = x => x.c === 1 || KOLH.test(x.v);
 const proteinPer100 = x => x.pk && x.kg ? x.pk * x.kg / 10 : null;
 const MIN_VEGO_PROTEIN = 8; // g per 100 g
-const arVego = x => (x.a === false || (x.a === true && MEJERI_AGG.test(x.v) && !KOTT_FISK.test(x.v)))
+// Kvarg: bara under 1 % fett. Fetthalten tas från namnet (t.ex. "0,2%"), annars från etiketten,
+// och kvarg som bevisligen är fet (Kesella, full-fat, twaróg) sorteras bort även utan siffra.
+const MAX_KVARG_FETT = 1;
+function kvargFett(x) {
+  const m = x.v.match(/(\d+(?:[,.]\d+)?)\s*%/);
+  if (m) return parseFloat(m[1].replace(",", "."));
+  const k = x.k || (x.u && ((x.u.match(/hemkop\.se\/produkt\/(.+)$/) || [])[1] ? "hemkop:" + x.u.match(/hemkop\.se\/produkt\/(.+)$/)[1] : null));
+  const rad = k && naringCache?.[k]?.[2]?.t?.find(r => /^fett$/i.test(r[0]));
+  if (rad) return parseFloat(String(rad[1]).replace(",", ".").replace(/[^\d.]/g, ""));
+  if (/kesella|full-?fat|fullfet|twar[oó]g|grädd/i.test(x.v)) return 99;
+  return null;
+}
+const kvargOk = x => !/kvarg/i.test(x.v) || !((kvargFett(x) ?? 0) >= MAX_KVARG_FETT);
+const arVego = x => kvargOk(x) && (x.a === false || (x.a === true && MEJERI_AGG.test(x.v) && !KOTT_FISK.test(x.v)))
   && !arKolh(x) && (proteinPer100(x) ?? 0) >= MIN_VEGO_PROTEIN;
 const HEL_INTE = /ost|kvarg|keso|cottage|skyr|yoghurt|mjölk|nugget|burgare|bullar|korv|bacon|skinka|kassler|pålägg|pastej|salami|kebab|schnitzel|cordon|panerad|griljerad|fiskpinn|crisp|tempura|krokett|färdig|grillad|kokt|stekt|rökt|gravad|marinerad|i sås|sallad|wrap|pizza|paj|soppa|röra|spread|chorizo|salsiccia|färskkorv|pulled|strimlad.*(stekt|grillad)|kaviar|rom |pudding|dressing|krydd|gryta|lasagne|pasta|piroger|dumplings|gyoza|vår?rull|sushi|rätt|månader|från \d|\d år|stroganoff|risotto|mos|grönsak|tagliatelle|nudlar|spaghetti|pannbiff|mortadella|skivad|deli|port\b|\/1 ?p\b|1p\b|biffar|hamburg|dafgårds|gratäng|buffalo|bbq|teriyaki|glaserad|tikka|tandoori/i;
 const arHel = x => x.a === true && HEL_RA.test(x.v) && !HEL_INTE.test(x.v);
@@ -346,7 +359,7 @@ function render() {
     const re = SOKORD[rubrik];
     if (re) rader = rader.concat(d.poster.filter(x => re.test(x.v) && !INTE_SOK.test(x.v)));
     const sedda = new Set();
-    const topp = rader.filter(x => { const k = x.v + x.b; if (sedda.has(k)) return false; sedda.add(k); return x.kg; })
+    const topp = rader.filter(x => { const k = x.v + x.b; if (sedda.has(k)) return false; sedda.add(k); return x.kg && kvargOk(x); })
                       .sort((a, b) => a.kg - b.kg).slice(0, 5);
     return `<div class="sokkort"><h3>${esc(rubrik)}</h3><div class="lista">${topp.length ? topp.map((x, i) => `
       ${radStart(x, i === 0 ? "topp" : "")}
@@ -634,7 +647,9 @@ async function laddaDag(id) {
 }
 
 (async () => {
-  [senaste, icaonline] = await Promise.all([hamta("data/senaste.json"), hamta("data/icaonline.json")]);
+  let nar;
+  [senaste, icaonline, nar] = await Promise.all([hamta("data/senaste.json"), hamta("data/icaonline.json"), hamta("data/naring.json")]);
+  naringCache = nar || {};
   let dagar = await hamta("data/historik/index.json");
   if (!Array.isArray(dagar)) dagar = [];
   if (senaste?.datum && !dagar.includes(senaste.datum)) dagar.unshift(senaste.datum);
