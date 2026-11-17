@@ -182,25 +182,34 @@ if (location.hostname === "www.hemkop.se") {
     }
   });
   const hemAlla = [...slaIhop(alla), ...utanDubbletter(slaIhop(alla), sortiment)];
+  // Sökorden först (få anrop), sedan etiketter för proteinkandidaterna – bäst först, lugnt, avbryt om Hemköp börjar blockera.
+  for (const [rubrik, s] of Object.entries(SOK)) await forsok("Hemköp-sök " + s.q, async () => {
+    const j = await fetch(`/search?q=${encodeURIComponent(s.q)}&page=0&size=100`).then(r => r.json());
+    const lista = (j.results || []).map(p => { const pris = tal(p.priceValue ?? p.price); const kg = ["kg", "l"].includes(p.comparePriceUnit) ? tal(p.comparePrice) : null; const namn = p.name + (p.manufacturer ? ` (${p.manufacturer})` : "") + (p.displayVolume ? `, ${p.displayVolume}` : ""); if (!pris) return null; const x = post(namn, kr(pris), pris, null, kg, null, "Hemköp (online)"); x.u = "https://www.hemkop.se/produkt/" + p.code; return satNaring(x, NARING["hemkop:" + p.code]); }).filter(Boolean);
+    ut.sok[rubrik] = sokTraffar(lista, s);
+  });
   await forsok("Hemköp näring", async () => {
-    const koder = [...new Set(hemAlla.filter(x => x.pk && x.id && !NARING["hemkop:" + x.id]).map(x => x.id))];
-    await iGrupper(koder, 4, async kod => {
+    const MAX_NYA = 250;
+    const sett = new Set(), koder = [];
+    for (const x of hemAlla.filter(x => x.pk && x.id && !NARING["hemkop:" + x.id]).sort((a, b) => b.pk - a.pk)) if (!sett.has(x.id)) { sett.add(x.id); koder.push(x.id); }
+    let blockerad = false, hamtade = 0;
+    await iGrupper(koder.slice(0, MAX_NYA), 2, async kod => {
+      if (blockerad) return;
       try {
-        const d = await fetch("/axfood/rest/p/" + encodeURIComponent(kod)).then(r => r.json());
+        const r = await fetch("/axfood/rest/p/" + encodeURIComponent(kod));
+        if (!(r.headers.get("content-type") || "").includes("json")) { blockerad = true; return; }
+        const d = await r.json(); hamtade++;
         const det = (d.nutrientHeaders || []).flatMap(h => h.nutrientDetails || []);
         const hitta = (typ, enh) => { const n = det.find(x => x.nutrientTypeCode?.toLowerCase() === typ && (!enh || x.measurementUnitCode === enh)); return n ? parseFloat(String(n.quantityContained).replace(",", ".")) : null; };
         const v = [hitta("protein"), hitta("energi", "kilokalori")];
         if (v[0] != null || v[1] != null) nyNaring["hemkop:" + kod] = v;
       } catch (e) {}
+      await new Promise(r => setTimeout(r, 400));
     });
+    if (blockerad) ut.fel.push(`Hemköp: slutade hämta etiketter efter ${hamtade} st (för många anrop) – fortsätter i morgon`);
     for (const x of hemAlla) satNaring(x, NARING["hemkop:" + x.id] || nyNaring["hemkop:" + x.id]);
   });
   ut.poster = behall(hemAlla);
-  for (const [rubrik, s] of Object.entries(SOK)) await forsok("Hemköp-sök " + s.q, async () => {
-    const j = await fetch(`/search?q=${encodeURIComponent(s.q)}&page=0&size=100`).then(r => r.json());
-    const lista = (j.results || []).map(p => { const pris = tal(p.priceValue ?? p.price); const kg = ["kg", "l"].includes(p.comparePriceUnit) ? tal(p.comparePrice) : null; const namn = p.name + (p.manufacturer ? ` (${p.manufacturer})` : "") + (p.displayVolume ? `, ${p.displayVolume}` : ""); return pris ? post(namn, kr(pris), pris, null, kg, null, "Hemköp (online)") : null; }).filter(Boolean);
-    ut.sok[rubrik] = sokTraffar(lista, s);
-  });
 }
 if (location.hostname === "www.lidl.se") {
   function lidlPost(d, kravRabatt) { const p = d.price || {}; if (kravRabatt && (!p.discount || !p.oldPrice)) return null; const pris = tal(p.price); if (!pris) return null; const forp = p.packaging?.text || "", bas = (p.basePrice?.text || "").trim(); let kg = null; if (bas.startsWith("/kg")) kg = pris; else if (vikt(forp)) kg = pris / vikt(forp); else if (/kr\/(kg|l)\b/.test(bas)) kg = tal(bas); const e = kr(pris) + (forp ? " / " + forp : "") + (bas.startsWith("/kg") ? "/kg" : ""); const badge = d.stockAvailability?.badgeInfo?.badges?.[0]?.text || ""; const x = post(d.fullTitle || d.title || "", e, pris, tal(p.oldPrice), kg, null, LIDL, badge); if (d.canonicalPath) x.u = "https://www.lidl.se" + d.canonicalPath; return x; }
