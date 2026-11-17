@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matdeals</title>
+<meta name="description" content="Dagens matdeals från ICA, Hemköp och Lidl – mest protein per krona och största rabatterna.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥚</text></svg>">
+<style>
+:root {
+  --bg: #f7f6f2; --kort: #ffffff; --text: #1d1d1b; --svag: #6b6a65; --linje: #e4e2db;
+  --accent: #1f7a4d; --accent-bg: #e3f2ea; --rabatt: #b3261e; --rabatt-bg: #fbe9e7; --vego: #5b6b1f; --vego-bg: #eef2dc;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151514; --kort: #1f1f1d; --text: #ecebe6; --svag: #a09e97; --linje: #33322f;
+    --accent: #6fcf9a; --accent-bg: #1d3328; --rabatt: #ff8a80; --rabatt-bg: #3a2220; --vego: #c4d67a; --vego-bg: #2c3218;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -.01em; }
+h2 { font-size: 18px; margin: 36px 0 4px; }
+.under { color: var(--svag); margin: 0 0 12px; font-size: 14px; }
+.status { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+.chip { font-size: 13px; padding: 3px 10px; border-radius: 999px; background: var(--kort); border: 1px solid var(--linje); }
+.chip.ok::before { content: "● "; color: var(--accent); }
+.chip.fel::before { content: "● "; color: var(--rabatt); }
+.chip.gammal::before { content: "● "; color: #c58a00; }
+nav { display: flex; gap: 6px; flex-wrap: wrap; margin: 20px 0 0; }
+nav a { color: var(--text); text-decoration: none; font-size: 14px; padding: 6px 12px; border-radius: 8px; background: var(--kort); border: 1px solid var(--linje); }
+nav a:hover { border-color: var(--accent); }
+.tabell { background: var(--kort); border: 1px solid var(--linje); border-radius: 12px; overflow: hidden; }
+.rad { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; padding: 10px 14px; border-top: 1px solid var(--linje); }
+.rad:first-child { border-top: 0; }
+.vara { font-weight: 550; overflow-wrap: anywhere; }
+.meta { overflow-wrap: anywhere; }
+.meta { color: var(--svag); font-size: 13px; }
+.siffror { text-align: right; white-space: nowrap; }
+.stor { font-weight: 650; font-variant-numeric: tabular-nums; }
+.tagg { display: inline-block; font-size: 12px; padding: 1px 7px; border-radius: 6px; margin-right: 4px; }
+.t-prot { background: var(--accent-bg); color: var(--accent); }
+.t-vego { background: var(--vego-bg); color: var(--vego); }
+.t-rab { background: var(--rabatt-bg); color: var(--rabatt); }
+.kolumner { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.kolumner h3 { font-size: 15px; margin: 12px 0 8px; color: var(--svag); font-weight: 600; }
+.tom { padding: 14px; color: var(--svag); }
+ul.fel { margin: 0; padding: 12px 14px 12px 32px; background: var(--kort); border: 1px solid var(--linje); border-radius: 12px; font-size: 14px; }
+footer { margin-top: 40px; color: var(--svag); font-size: 13px; }
+@media (max-width: 680px) { .kolumner { grid-template-columns: 1fr; } h1 { font-size: 24px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Matdeals</h1>
+  <p class="under">Veckans erbjudanden och sökpriser i Stockholm, rankade efter protein per krona och rabatt.</p>
+  <div class="status" id="status"></div>
+  <nav>
+    <a href="#protein">Protein per krona</a>
+    <a href="#rabatt">Största rabatterna</a>
+    <a href="#sok">Sökpriser</a>
+    <a href="#fel">Fel</a>
+  </nav>
+
+  <h2 id="protein">Mest protein per krona</h2>
+  <p class="under">Gram protein per krona, uppskattat från schablonvärden per 100 g.</p>
+  <div class="kolumner">
+    <div><h3>Animaliskt</h3><div class="tabell" id="prot-anim"></div></div>
+    <div><h3>Vegetariskt</h3><div class="tabell" id="prot-vego"></div></div>
+  </div>
+
+  <h2 id="rabatt">Största rabatterna</h2>
+  <p class="under">Jämfört med ordinarie pris.</p>
+  <div class="tabell" id="rabatter"></div>
+
+  <h2 id="sok">Sökpriser</h2>
+  <p class="under">Billigast per kg för bevakade varor.</p>
+  <div class="kolumner" id="sokord"></div>
+
+  <h2 id="fel">Fel per källa</h2>
+  <div id="felrader"></div>
+
+  <footer id="fot">Laddar…</footer>
+</main>
+<script>
+const KALLOR = { ica: "ICA", icaonline: "ICA Handla", hemkop: "Hemköp", lidl: "Lidl" };
+const F = { v: 0, e: 1, p: 2, o: 3, r: 4, kg: 5, b: 6, g: 7, i: 8, pk: 9, a: 10 };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const kr = x => x == null ? "–" : x.toFixed(2).replace(".", ",") + " kr";
+
+async function hamta(url) {
+  try { const r = await fetch(url, { cache: "no-store" }); return r.ok ? await r.json() : null; } catch { return null; }
+}
+
+function radHtml(x, hoger) {
+  const meta = [x[F.e], x[F.b], x[F.g] && "t.o.m. " + x[F.g], x[F.i]].filter(Boolean).map(esc).join(" · ");
+  return `<div class="rad"><div><div class="vara">${esc(x[F.v])}</div><div class="meta">${meta}</div></div><div class="siffror">${hoger}</div></div>`;
+}
+function lista(id, rader, tomText = "Inget i dag.") {
+  document.getElementById(id).innerHTML = rader.length ? rader.join("") : `<div class="tom">${tomText}</div>`;
+}
+
+(async () => {
+  const [moln, mac] = await Promise.all([hamta("data/senaste.json"), hamta("data/icaonline.json")]);
+  const kallor = {}, tider = {};
+  for (const k of ["ica", "hemkop", "lidl"]) if (moln?.[k]) { kallor[k] = moln[k]; tider[k] = moln; }
+  if (mac?.icaonline) { kallor.icaonline = mac.icaonline; tider.icaonline = mac; }
+
+  const idag = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Stockholm" });
+  document.getElementById("status").innerHTML = Object.entries(KALLOR).map(([k, namn]) => {
+    const d = kallor[k], t = tider[k];
+    if (!d) return `<span class="chip fel">${namn}: ingen data</span>`;
+    const antal = d.poster.length + Object.values(d.sok || {}).reduce((n, l) => n + l.length, 0);
+    const klass = !antal ? "fel" : t.datum !== idag ? "gammal" : "ok";
+    return `<span class="chip ${klass}">${namn}: ${t.datum === idag ? "i dag" : esc(t.datum)} ${esc(t.tid || "")}</span>`;
+  }).join("");
+
+  const poster = Object.values(kallor).flatMap(d => d.poster || []);
+  const prot = poster.filter(x => x[F.pk]).sort((a, b) => b[F.pk] - a[F.pk]);
+  const protRad = x => radHtml(x, `<span class="stor">${x[F.pk].toFixed(1).replace(".", ",")} g/kr</span><div class="meta">${kr(x[F.p])}${x[F.r] ? ` <span class="tagg t-rab">−${x[F.r]} %</span>` : ""}</div>`);
+  lista("prot-anim", prot.filter(x => x[F.a] === true).slice(0, 15).map(protRad));
+  lista("prot-vego", prot.filter(x => x[F.a] === false).slice(0, 15).map(protRad));
+
+  const rab = poster.filter(x => x[F.r] > 0).sort((a, b) => b[F.r] - a[F.r]).slice(0, 25);
+  lista("rabatter", rab.map(x => radHtml(x, `<span class="tagg t-rab">−${x[F.r]} %</span><div class="stor">${kr(x[F.p])}</div><div class="meta"><s>${kr(x[F.o])}</s></div>`)));
+
+  const ord = [...new Set(Object.values(kallor).flatMap(d => Object.keys(d.sok || {})))];
+  document.getElementById("sokord").innerHTML = ord.map(o => {
+    const traffar = Object.values(kallor).flatMap(d => d.sok?.[o] || []).sort((a, b) => a[F.kg] - b[F.kg]).slice(0, 8);
+    const rader = traffar.map(x => radHtml(x, `<span class="stor">${kr(x[F.kg])}/kg</span><div class="meta">${kr(x[F.p])}</div>`)).join("");
+    return `<div><h3>${esc(o)}</h3><div class="tabell">${rader || '<div class="tom">Inga träffar.</div>'}</div></div>`;
+  }).join("") || '<div class="tom">Inga sökresultat.</div>';
+
+  const fel = Object.entries(kallor).flatMap(([k, d]) => (d.fel || []).filter(Boolean).map(f => `<li><b>${KALLOR[k]}:</b> ${esc(f)}</li>`));
+  document.getElementById("felrader").innerHTML = fel.length ? `<ul class="fel">${fel.join("")}</ul>` : '<p class="under">Inga fel i senaste skanningen.</p>';
+
+  document.getElementById("fot").textContent = "Uppdateras varje morgon. Proteinvärden är ungefärliga. Kontrollera alltid pris och villkor i butiken.";
+})();
+</script>
+</body>
+</html>

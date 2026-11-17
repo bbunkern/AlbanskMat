@@ -1,0 +1,30 @@
+name: Daglig skanning
+on:
+  schedule:
+    - cron: "20 5 * * *"   # 06:20 svensk vintertid, 07:20 sommartid
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: data
+jobs:
+  skanna:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save playwright@1.48.2
+      - run: npx playwright install --with-deps chromium
+      - run: node skanna.mjs
+      - name: Spara data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet && exit 0
+          git commit -m "Skanning $(TZ=Europe/Stockholm date +%F)"
+          for i in 1 2 3; do git pull --rebase -q && git push -q && exit 0; sleep 5; done
+          exit 1

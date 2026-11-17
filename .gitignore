@@ -1,0 +1,6 @@
+node_modules/
+resultat.json
+sok.html
+*.png
+package*.json
+CLAUDE.md
