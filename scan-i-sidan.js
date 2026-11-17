@@ -105,31 +105,27 @@ if (location.hostname === "www.ica.se") {
   ut.poster = behall(slaIhop(alla));
 }
 if (location.hostname === "handlaprivatkund.ica.se") {
-  function icaSida(h) { const a = h.indexOf("window.__INITIAL_STATE__=") + 25, b = h.indexOf("</script>", a); if (a < 25) throw new Error("ingen produktdata (bot-kontroll?)"); return fixJson(h.slice(a, b).trim().replace(/;$/, "")); }
+  // En sökning i taget med paus emellan, och avbryt direkt om ICA visar sin bot-kontroll.
+  const PAUS_MS = 3000;
   function icaPost(p, butik) { const pris = tal(p.price?.current?.amount); if (!pris) return null; const ord = tal(p.price?.original?.amount); const lbl = p.price?.unit?.label || ""; const kg = /kg|liter/.test(lbl) ? tal(p.price?.unit?.current?.amount) : null; return post(p.name, kr(pris), pris, ord, kg, null, butik + " (online)"); }
-  await forsok("ICA Handla sortiment", async () => {
-    const alla = [];
-    for (const [butik, id] of Object.entries(ICA_EHANDEL)) {
-      const sidor = await iGrupper(SORTIMENT, 4, async q => { try { return icaSida(await fetch(`/stores/${id}/search?q=${encodeURIComponent(q)}`).then(r => r.text())); } catch (e) { ut.fel.push("ICA Handla " + q + ": " + e.message); return null; } });
-      for (const st of sidor) if (st) for (const p of Object.values(st.data?.products?.productEntities || {})) { const x = icaPost(p, butik); if (x) alla.push(x); }
-    }
-    ut.poster = behall(utanDubbletter([], alla));
-  });
-  for (const [rubrik, s] of Object.entries(SOK)) await forsok("ICA-sök " + s.q, async () => {
-    const lista = [];
-    for (const [butik, id] of Object.entries(ICA_EHANDEL)) {
-      const h = await fetch(`/stores/${id}/search?q=${encodeURIComponent(s.q)}`).then(r => r.text());
-      const a = h.indexOf("window.__INITIAL_STATE__=") + 25, b = h.indexOf("</script>", a);
-      const st = fixJson(h.slice(a, b).trim().replace(/;$/, ""));
-      for (const p of Object.values(st.data.products.productEntities)) {
-        const pris = tal(p.price?.current?.amount);
-        const lbl = p.price?.unit?.label || "";
-        const kg = /kg|liter/.test(lbl) ? tal(p.price?.unit?.current?.amount) : null;
-        if (pris) lista.push(post(p.name, kr(pris), pris, null, kg, null, butik + " (online)"));
-      }
-    }
-    ut.sok[rubrik] = sokTraffar(lista, s);
-  });
+  const ord = [...new Set([...Object.values(SOK).map(s => s.q), ...SORTIMENT])];
+  const alla = [], perOrd = {};
+  let stopp = false;
+  for (const [butik, id] of Object.entries(ICA_EHANDEL)) for (const q of ord) {
+    if (stopp) break;
+    try {
+      const h = await fetch(`/stores/${id}/search?q=${encodeURIComponent(q)}`).then(r => r.text());
+      const a = h.indexOf("window.__INITIAL_STATE__=");
+      if (a < 0) { stopp = true; ut.fel.push(`ICA Handla: bot-kontroll efter ${Object.keys(perOrd).length} sökningar – avbröt`); break; }
+      const b = h.indexOf("</script>", a + 25);
+      const st = fixJson(h.slice(a + 25, b).trim().replace(/;$/, ""));
+      perOrd[q] = [];
+      for (const p of Object.values(st.data?.products?.productEntities || {})) { const x = icaPost(p, butik); if (x) { alla.push(x); perOrd[q].push(x); } }
+    } catch (e) { ut.fel.push("ICA Handla " + q + ": " + e.message); }
+    await new Promise(r => setTimeout(r, PAUS_MS));
+  }
+  ut.poster = behall(utanDubbletter([], alla));
+  for (const [rubrik, s] of Object.entries(SOK)) if (perOrd[s.q]) ut.sok[rubrik] = sokTraffar(perOrd[s.q], s);
 }
 if (location.hostname === "www.hemkop.se") {
   const alla = [];

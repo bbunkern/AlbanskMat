@@ -53,6 +53,7 @@
   .stor { font-size: 22px; font-weight: 800; line-height: 1; color: var(--gron); }
   .vego .stor { color: var(--vego); }
   .enhet { font-size: 11px; color: var(--mjuk); margin-top: 3px; }
+  .kcal { font-size: 15px; font-weight: 700; line-height: 1; color: var(--text); margin-top: 7px; }
   .rabatt { display: inline-block; background: var(--gronljus); color: var(--gron); font-weight: 800;
     font-size: 15px; padding: 5px 8px; border-radius: 9px; }
   .stapel { height: 4px; border-radius: 2px; background: var(--linje); margin-top: 8px; overflow: hidden; }
@@ -104,7 +105,7 @@
       <button data-typ="vego">🌱 Vegetariskt</button>
     </div>
     <h2 id="prot-rubrik">Animaliskt protein per krona</h2>
-    <p class="forkl">Veckans erbjudanden i dina butiker. Högst upp = mest protein för pengarna.</p>
+    <p class="forkl">Hela sortimentet i dina butiker – både erbjudanden och ordinarie pris. Högst upp = mest protein för pengarna.</p>
     <div id="protein-lista"></div>
 
     <h2>🔎 Mina sökningar</h2>
@@ -133,7 +134,7 @@
 </div>
 
 <script>
-const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a"];
+const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk"];
 const KALLOR = ["ica", "icaonline", "hemkop", "lidl"];
 const SOKORD = {
   Lax: /^(färsk |fryst |svensk |norsk |hel )?lax|laxfil|laxsida|laxbit|laxrygg|(kallrökt|gravad|varmrökt) lax/i,
@@ -187,6 +188,7 @@ function render() {
       <div class="mitt"><div class="namn">${esc(x.v)}</div>${meta(x)}
         <div class="stapel"><div style="width:${Math.max(4, Math.round(100 * x.pk / bast))}%"></div></div></div>
       <div class="hoger"><div class="stor">${x.pk.toFixed(1)}</div><div class="enhet">g protein/kr</div>
+        ${x.kk ? `<div class="kcal">${x.kk}</div><div class="enhet">kcal/kr</div>` : ""}
         <div class="enhet">${kr(100 / x.pk)}/100 g</div></div>
     </div>`).join("") : `<div class="tom">Inga proteinerbjudanden den här dagen.</div>`;
 
