@@ -1,7 +1,7 @@
 // Daglig skanning från molnet (GitHub Actions): ica, hemkop, lidl.
 // icaonline stoppas av ICA:s bot-kontroll i molnet och skannas från Macen (data/icaonline.json).
 import { chromium } from "playwright";
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, readdirSync } from "node:fs";
 
 const SKRIPT = readFileSync(new URL("./scan-i-sidan.js", import.meta.url), "utf8");
 const SAJTER = [
@@ -51,3 +51,6 @@ mkdirSync("data/historik", { recursive: true });
 const json = JSON.stringify(skann);
 writeFileSync("data/senaste.json", json);
 writeFileSync(`data/historik/${datum}.json`, json);
+// Lista över alla dagar så att sidan kan visa en datumväljare.
+const dagar = readdirSync("data/historik").filter(f => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).map(f => f.slice(0, 10)).sort().reverse();
+writeFileSync("data/historik/index.json", JSON.stringify(dagar));

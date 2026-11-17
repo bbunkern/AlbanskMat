@@ -1,141 +1,292 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="sv">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AlbanskMat</title>
-<meta name="description" content="Dagens matdeals från ICA, Hemköp och Lidl – mest protein per krona och största rabatterna.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥚</text></svg>">
+<meta name="description" content="Veckans matdeals från ICA, Hemköp och Lidl – mest protein per krona och bästa rabatterna.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>">
 <style>
-:root {
-  --bg: #f7f6f2; --kort: #ffffff; --text: #1d1d1b; --svag: #6b6a65; --linje: #e4e2db;
-  --accent: #1f7a4d; --accent-bg: #e3f2ea; --rabatt: #b3261e; --rabatt-bg: #fbe9e7; --vego: #5b6b1f; --vego-bg: #eef2dc;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #151514; --kort: #1f1f1d; --text: #ecebe6; --svag: #a09e97; --linje: #33322f;
-    --accent: #6fcf9a; --accent-bg: #1d3328; --rabatt: #ff8a80; --rabatt-bg: #3a2220; --vego: #c4d67a; --vego-bg: #2c3218;
+  :root {
+    --bg: #f5f2ec; --kort: #ffffff; --text: #1c1c1e; --mjuk: #6e6e73; --svag: #a1a1a6;
+    --linje: #ece8e1; --gron: #1f8a4c; --gronljus: #e5f3ea; --vego: #4f9a2a;
+    --ica: #e3000b; --hemkop: #ee7203; --lidl: #0050aa; --varning: #b35c00;
   }
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-main { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
-h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -.01em; }
-h2 { font-size: 18px; margin: 36px 0 4px; }
-.under { color: var(--svag); margin: 0 0 12px; font-size: 14px; }
-.status { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
-.chip { font-size: 13px; padding: 3px 10px; border-radius: 999px; background: var(--kort); border: 1px solid var(--linje); }
-.chip.ok::before { content: "● "; color: var(--accent); }
-.chip.fel::before { content: "● "; color: var(--rabatt); }
-.chip.gammal::before { content: "● "; color: #c58a00; }
-nav { display: flex; gap: 6px; flex-wrap: wrap; margin: 20px 0 0; }
-nav a { color: var(--text); text-decoration: none; font-size: 14px; padding: 6px 12px; border-radius: 8px; background: var(--kort); border: 1px solid var(--linje); }
-nav a:hover { border-color: var(--accent); }
-.tabell { background: var(--kort); border: 1px solid var(--linje); border-radius: 12px; overflow: hidden; }
-.rad { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; padding: 10px 14px; border-top: 1px solid var(--linje); }
-.rad:first-child { border-top: 0; }
-.vara { font-weight: 550; overflow-wrap: anywhere; }
-.meta { overflow-wrap: anywhere; }
-.meta { color: var(--svag); font-size: 13px; }
-.siffror { text-align: right; white-space: nowrap; }
-.stor { font-weight: 650; font-variant-numeric: tabular-nums; }
-.tagg { display: inline-block; font-size: 12px; padding: 1px 7px; border-radius: 6px; margin-right: 4px; }
-.t-prot { background: var(--accent-bg); color: var(--accent); }
-.t-vego { background: var(--vego-bg); color: var(--vego); }
-.t-rab { background: var(--rabatt-bg); color: var(--rabatt); }
-.kolumner { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.kolumner h3 { font-size: 15px; margin: 12px 0 8px; color: var(--svag); font-weight: 600; }
-.tom { padding: 14px; color: var(--svag); }
-ul.fel { margin: 0; padding: 12px 14px 12px 32px; background: var(--kort); border: 1px solid var(--linje); border-radius: 12px; font-size: 14px; }
-footer { margin-top: 40px; color: var(--svag); font-size: 13px; }
-@media (max-width: 680px) { .kolumner { grid-template-columns: 1fr; } h1 { font-size: 24px; } }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111113; --kort: #1c1c1f; --text: #f2f2f4; --mjuk: #a1a1a8; --svag: #6c6c72;
+            --linje: #2a2a2e; --gronljus: #173323; --gron: #3fbf74; --vego: #7cc653; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 48px; }
+  header { padding: 22px 0 6px; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  h1 { margin: 0; font-size: 28px; letter-spacing: -0.4px; }
+  .uppd { color: var(--mjuk); font-size: 13px; margin-top: 3px; }
+  select { font: inherit; font-size: 14px; padding: 7px 10px; border-radius: 10px;
+    border: 1px solid var(--linje); background: var(--kort); color: var(--text); }
+  .flikar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 10px 0 10px; }
+  .seg { display: flex; background: var(--linje); border-radius: 12px; padding: 3px; }
+  .seg button { flex: 1; border: 0; background: transparent; color: var(--mjuk); font: inherit;
+    font-weight: 600; font-size: 15px; padding: 9px 6px; border-radius: 9px; cursor: pointer; }
+  .seg button.aktiv { background: var(--kort); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .seg.liten button { font-size: 13px; padding: 7px 6px; }
+  h2 { font-size: 20px; margin: 22px 0 4px; letter-spacing: -0.2px; }
+  .forkl { color: var(--mjuk); font-size: 13px; margin: 0 0 10px; }
+  .lista { background: var(--kort); border-radius: 16px; overflow: hidden; }
+  .rad { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--linje); }
+  .rad:last-child { border-bottom: 0; }
+  .nr { width: 20px; text-align: center; font-weight: 700; color: var(--svag); font-size: 14px; flex: none; }
+  .rad.topp .nr { color: var(--gron); }
+  .mitt { flex: 1; min-width: 0; }
+  .namn { font-weight: 600; font-size: 15px; line-height: 1.3; }
+  .meta { display: flex; flex-wrap: wrap; gap: 5px 7px; align-items: center; margin-top: 5px;
+    font-size: 13px; color: var(--mjuk); }
+  .pris { color: var(--text); font-weight: 600; }
+  .ord { text-decoration: line-through; color: var(--svag); }
+  .chip { color: #fff; font-size: 10.5px; font-weight: 700; padding: 2px 6px; border-radius: 5px; white-space: nowrap; }
+  .chip.ica { background: var(--ica); } .chip.hemkop { background: var(--hemkop); } .chip.lidl { background: var(--lidl); }
+  .info { color: var(--varning); font-size: 12px; }
+  .datum { color: var(--svag); font-size: 12px; }
+  .hoger { text-align: right; flex: none; min-width: 64px; }
+  .stor { font-size: 22px; font-weight: 800; line-height: 1; color: var(--gron); }
+  .vego .stor { color: var(--vego); }
+  .enhet { font-size: 11px; color: var(--mjuk); margin-top: 3px; }
+  .rabatt { display: inline-block; background: var(--gronljus); color: var(--gron); font-weight: 800;
+    font-size: 15px; padding: 5px 8px; border-radius: 9px; }
+  .stapel { height: 4px; border-radius: 2px; background: var(--linje); margin-top: 8px; overflow: hidden; }
+  .stapel div { height: 100%; background: var(--gron); border-radius: 2px; }
+  .vego .stapel div { background: var(--vego); }
+  .sokgrid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .sokkort h3 { margin: 0; padding: 12px 14px 4px; font-size: 16px; }
+  .sokkort .lista { border-radius: 0 0 16px 16px; }
+  .sokkort { background: var(--kort); border-radius: 16px; overflow: hidden; }
+  .kg { font-weight: 800; font-size: 16px; white-space: nowrap; }
+  .kg small { font-weight: 500; font-size: 11px; color: var(--mjuk); }
+  .rad.topp .kg { color: var(--gron); }
+  .verktyg { display: flex; gap: 8px; margin: 12px 0 10px; flex-wrap: wrap; }
+  .verktyg input { flex: 1; min-width: 160px; font: inherit; font-size: 15px; padding: 9px 12px;
+    border-radius: 10px; border: 1px solid var(--linje); background: var(--kort); color: var(--text); }
+  .kedjor { display: flex; gap: 6px; flex-wrap: wrap; }
+  .kedjor button { font: inherit; font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: 999px;
+    border: 1px solid var(--linje); background: var(--kort); color: var(--text); cursor: pointer; }
+  .kedjor button.aktiv { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .tom, .status { color: var(--mjuk); padding: 18px 14px; font-size: 14px; text-align: center; }
+  .fel { color: var(--varning); font-size: 12px; margin-top: 18px; }
+  .fot { color: var(--svag); font-size: 11.5px; margin-top: 26px; line-height: 1.5; }
+  [hidden] { display: none !important; }
+  @media (max-width: 360px) { .sokgrid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
-<main>
-  <h1>AlbanskMat</h1>
-  <p class="under">Veckans erbjudanden och sökpriser i Stockholm, rankade efter protein per krona och rabatt.</p>
-  <div class="status" id="status"></div>
-  <nav>
-    <a href="#protein">Protein per krona</a>
-    <a href="#rabatt">Största rabatterna</a>
-    <a href="#sok">Sökpriser</a>
-    <a href="#fel">Fel</a>
-  </nav>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>🛒 AlbanskMat</h1>
+      <div class="uppd" id="uppd">Laddar…</div>
+    </div>
+    <select id="datumval" aria-label="Välj dag" hidden></select>
+  </header>
 
-  <h2 id="protein">Mest protein per krona</h2>
-  <p class="under">Gram protein per krona, uppskattat från schablonvärden per 100 g.</p>
-  <div class="kolumner">
-    <div><h3>Animaliskt</h3><div class="tabell" id="prot-anim"></div></div>
-    <div><h3>Vegetariskt</h3><div class="tabell" id="prot-vego"></div></div>
+  <div class="flikar">
+    <div class="seg" role="tablist">
+      <button data-flik="protein" class="aktiv">💪 Protein</button>
+      <button data-flik="deals">🔥 Bra deals</button>
+    </div>
   </div>
 
-  <h2 id="rabatt">Största rabatterna</h2>
-  <p class="under">Jämfört med ordinarie pris.</p>
-  <div class="tabell" id="rabatter"></div>
+  <div id="status" class="status" hidden></div>
 
-  <h2 id="sok">Sökpriser</h2>
-  <p class="under">Billigast per kg för bevakade varor.</p>
-  <div class="kolumner" id="sokord"></div>
+  <section id="flik-protein">
+    <div class="seg liten" id="proteintyp" style="margin-top:6px">
+      <button data-typ="anim" class="aktiv">🥩 Animaliskt</button>
+      <button data-typ="vego">🌱 Vegetariskt</button>
+    </div>
+    <h2 id="prot-rubrik">Animaliskt protein per krona</h2>
+    <p class="forkl">Veckans erbjudanden i dina butiker. Högst upp = mest protein för pengarna.</p>
+    <div id="protein-lista"></div>
 
-  <h2 id="fel">Fel per källa</h2>
-  <div id="felrader"></div>
+    <h2>🔎 Mina sökningar</h2>
+    <p class="forkl">Billigaste kilopriset i hela sortimentet och bland erbjudandena.</p>
+    <div class="sokgrid" id="sok"></div>
+  </section>
 
-  <footer id="fot">Laddar…</footer>
-</main>
+  <section id="flik-deals" hidden>
+    <h2>Veckans bästa deals</h2>
+    <p class="forkl">Alla erbjudanden med minst 20 % rabatt, störst rabatt först.</p>
+    <div class="verktyg">
+      <input id="sokfalt" type="search" placeholder="Sök vara…" autocomplete="off">
+      <div class="kedjor" id="kedjor">
+        <button data-k="" class="aktiv">Alla</button>
+        <button data-k="ica">ICA</button>
+        <button data-k="hemkop">Hemköp</button>
+        <button data-k="lidl">Lidl</button>
+      </div>
+    </div>
+    <div id="deals-lista"></div>
+  </section>
+
+  <div id="fel" class="fel"></div>
+  <div class="fot">ICA Nära Roslagstull · ICA Supermarket Vanadis · Hemköp Birger Jarlsgatan · Hemköp Matglädjen · Lidl Sveavägen.
+    Proteinhalten är uppskattad från typiska näringsvärden per varutyp. Sökningarna använder e-handelspriser, som kan skilja sig lite från butiken.</div>
+</div>
+
 <script>
-const KALLOR = { ica: "ICA", icaonline: "ICA Handla", hemkop: "Hemköp", lidl: "Lidl" };
-const F = { v: 0, e: 1, p: 2, o: 3, r: 4, kg: 5, b: 6, g: 7, i: 8, pk: 9, a: 10 };
+const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a"];
+const KALLOR = ["ica", "icaonline", "hemkop", "lidl"];
+const SOKORD = {
+  Lax: /^(färsk |fryst |svensk |norsk |hel )?lax|laxfil|laxsida|laxbit|laxrygg|(kallrökt|gravad|varmrökt) lax/i,
+  Potatis: /potatis/i, Matvete: /matvete|^vete\b/i, Kvarg: /kvarg/i,
+};
+const INTE_SOK = /chips|mos|gratäng|sås|paj|pudding|katt|hund|sötpotatis|sallad|färs/i;
+const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const kr = x => x == null ? "–" : x.toFixed(2).replace(".", ",") + " kr";
+const tillObj = rad => Object.fromEntries(FALT.map((f, i) => [f, rad[i]]));
+const kedja = b => /^ICA/.test(b) ? "ica" : /^Hemköp/.test(b) ? "hemkop" : /^Lidl/.test(b) ? "lidl" : "";
 
+let scans = [], valt = null, flik = "protein", typ = "anim", kedjefilter = "", sokord = "";
+
+function chips(butiker) {
+  return String(butiker || "").split(" · ").map(b => `<span class="chip ${kedja(b)}">${esc(b)}</span>`).join("");
+}
+function meta(x) {
+  return `<div class="meta">${chips(x.b)} <span class="pris">${esc(x.e)}</span>` +
+    (x.o && x.o > x.p ? ` <span class="ord">${kr(x.o)}</span>` : "") +
+    (x.i ? ` <span class="info">${esc(x.i)}</span>` : "") +
+    (x.g ? ` <span class="datum">${esc(x.g)}</span>` : "") + `</div>`;
+}
+
+function data() {
+  const d = scans.find(s => s.id === valt);
+  if (!d || !d.data) return null;
+  const poster = [], sok = {}, fel = [];
+  for (const k of KALLOR) {
+    const s = d.data[k];
+    if (!s) { fel.push(`${k}: ingen data den här dagen`); continue; }
+    (s.poster || []).forEach(r => poster.push(tillObj(r)));
+    for (const [rubrik, rader] of Object.entries(s.sok || {})) (sok[rubrik] ||= []).push(...rader.map(tillObj));
+    (s.fel || []).forEach(f => fel.push(f));
+  }
+  return { poster, sok, fel, tid: d.data.tid };
+}
+
+function render() {
+  const d = data();
+  if (!d) return;
+  // Protein
+  const prot = d.poster.filter(x => x.pk && (typ === "anim" ? x.a : x.a === false))
+                      .sort((a, b) => b.pk - a.pk).slice(0, 40);
+  $("prot-rubrik").textContent = typ === "anim" ? "Animaliskt protein per krona" : "Vegetariskt protein per krona";
+  const bast = prot[0]?.pk || 1;
+  $("protein-lista").className = "lista" + (typ === "vego" ? " vego" : "");
+  $("protein-lista").innerHTML = prot.length ? prot.map((x, i) => `
+    <div class="rad ${i < 3 ? "topp" : ""}">
+      <div class="nr">${i + 1}</div>
+      <div class="mitt"><div class="namn">${esc(x.v)}</div>${meta(x)}
+        <div class="stapel"><div style="width:${Math.max(4, Math.round(100 * x.pk / bast))}%"></div></div></div>
+      <div class="hoger"><div class="stor">${x.pk.toFixed(1)}</div><div class="enhet">g protein/kr</div>
+        <div class="enhet">${kr(100 / x.pk)}/100 g</div></div>
+    </div>`).join("") : `<div class="tom">Inga proteinerbjudanden den här dagen.</div>`;
+
+  // Mina sökningar – sökträffar + veckans erbjudanden som matchar
+  $("sok").innerHTML = Object.entries(d.sok).map(([rubrik, rader]) => {
+    const re = SOKORD[rubrik];
+    if (re) rader = rader.concat(d.poster.filter(x => re.test(x.v) && !INTE_SOK.test(x.v)));
+    const sedda = new Set();
+    const topp = rader.filter(x => { const k = x.v + x.b; if (sedda.has(k)) return false; sedda.add(k); return x.kg; })
+                      .sort((a, b) => a.kg - b.kg).slice(0, 5);
+    return `<div class="sokkort"><h3>${esc(rubrik)}</h3><div class="lista">${topp.length ? topp.map((x, i) => `
+      <div class="rad ${i === 0 ? "topp" : ""}">
+        <div class="nr">${i + 1}</div>
+        <div class="mitt"><div class="namn">${esc(x.v)}</div>
+          <div class="meta">${chips(x.b)} <span>${esc(x.e)}</span></div></div>
+        <div class="hoger kg">${kr(x.kg).replace(" kr", "")} <small>kr/kg</small></div>
+      </div>`).join("") : `<div class="tom">Inget hittat.</div>`}</div></div>`;
+  }).join("");
+
+  // Bra deals
+  const deals = d.poster.filter(x => x.r >= 20)
+    .filter(x => !kedjefilter || String(x.b).split(" · ").some(b => kedja(b) === kedjefilter))
+    .filter(x => !sokord || x.v.toLowerCase().includes(sokord))
+    .sort((a, b) => b.r - a.r);
+  $("deals-lista").className = "lista";
+  $("deals-lista").innerHTML = deals.length ? deals.map(x => `
+    <div class="rad">
+      <div class="mitt"><div class="namn">${esc(x.v)}</div>${meta(x)}</div>
+      <div class="hoger"><span class="rabatt">-${x.r}%</span></div>
+    </div>`).join("") : `<div class="tom">Inga deals matchar.</div>`;
+
+  $("fel").innerHTML = d.fel.length ? "⚠ " + d.fel.map(esc).join("<br>⚠ ") : "";
+  const s = scans.find(s => s.id === valt);
+  $("uppd").textContent = `Scan ${formatera(s.id)}${d.tid ? " kl " + d.tid : ""}`;
+}
+
+function formatera(id) {
+  const [y, m, dag] = id.split("-").map(Number);
+  const dt = new Date(y, m - 1, dag);
+  return dt.toLocaleDateString("sv-SE", { weekday: "long", day: "numeric", month: "long" });
+}
+
+function visaFlik(f) {
+  flik = f === "deals" ? "deals" : "protein";
+  document.querySelectorAll(".seg[role=tablist] button").forEach(b => b.classList.toggle("aktiv", b.dataset.flik === flik));
+  $("flik-protein").hidden = flik !== "protein";
+  $("flik-deals").hidden = flik !== "deals";
+}
+
+document.querySelectorAll(".seg[role=tablist] button").forEach(b => b.onclick = () => {
+  visaFlik(b.dataset.flik);
+  try { history.replaceState(null, "", "#" + flik); } catch (e) {}
+});
+window.addEventListener("hashchange", () => visaFlik(location.hash.slice(1)));
+visaFlik(location.hash.slice(1));
+
+document.querySelectorAll("#proteintyp button").forEach(b => b.onclick = () => {
+  typ = b.dataset.typ;
+  document.querySelectorAll("#proteintyp button").forEach(x => x.classList.toggle("aktiv", x === b));
+  render();
+});
+document.querySelectorAll("#kedjor button").forEach(b => b.onclick = () => {
+  kedjefilter = b.dataset.k;
+  document.querySelectorAll("#kedjor button").forEach(x => x.classList.toggle("aktiv", x === b));
+  render();
+});
+$("sokfalt").oninput = e => { sokord = e.target.value.trim().toLowerCase(); render(); };
+$("datumval").onchange = async e => { valt = e.target.value; await laddaDag(valt); render(); };
+
+function status(text) { $("status").hidden = !text; $("status").textContent = text || ""; }
+
+// Data: molnskanningen (ica, hemkop, lidl) i data/senaste.json + data/historik/,
+// ICA Handla från Macen i data/icaonline.json.
 async function hamta(url) {
-  try { const r = await fetch(url, { cache: "no-store" }); return r.ok ? await r.json() : null; } catch { return null; }
+  try { const r = await fetch(url, { cache: "no-store" }); return r.ok ? await r.json() : null; } catch (e) { return null; }
 }
-
-function radHtml(x, hoger) {
-  const meta = [x[F.e], x[F.b], x[F.g] && "t.o.m. " + x[F.g], x[F.i]].filter(Boolean).map(esc).join(" · ");
-  return `<div class="rad"><div><div class="vara">${esc(x[F.v])}</div><div class="meta">${meta}</div></div><div class="siffror">${hoger}</div></div>`;
-}
-function lista(id, rader, tomText = "Inget i dag.") {
-  document.getElementById(id).innerHTML = rader.length ? rader.join("") : `<div class="tom">${tomText}</div>`;
+let senaste = null, icaonline = null;
+async function laddaDag(id) {
+  const s = scans.find(x => x.id === id);
+  if (!s || s.data) return;
+  const moln = senaste?.datum === id ? senaste : await hamta(`data/historik/${id}.json`);
+  s.data = { ...(moln || {}) };
+  if (icaonline?.datum === id) s.data.icaonline = icaonline.icaonline;
 }
 
 (async () => {
-  const [moln, mac] = await Promise.all([hamta("data/senaste.json"), hamta("data/icaonline.json")]);
-  const kallor = {}, tider = {};
-  for (const k of ["ica", "hemkop", "lidl"]) if (moln?.[k]) { kallor[k] = moln[k]; tider[k] = moln; }
-  if (mac?.icaonline) { kallor.icaonline = mac.icaonline; tider.icaonline = mac; }
-
-  const idag = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Stockholm" });
-  document.getElementById("status").innerHTML = Object.entries(KALLOR).map(([k, namn]) => {
-    const d = kallor[k], t = tider[k];
-    if (!d) return `<span class="chip fel">${namn}: ingen data</span>`;
-    const antal = d.poster.length + Object.values(d.sok || {}).reduce((n, l) => n + l.length, 0);
-    const klass = !antal ? "fel" : t.datum !== idag ? "gammal" : "ok";
-    return `<span class="chip ${klass}">${namn}: ${t.datum === idag ? "i dag" : esc(t.datum)} ${esc(t.tid || "")}</span>`;
-  }).join("");
-
-  const poster = Object.values(kallor).flatMap(d => d.poster || []);
-  const prot = poster.filter(x => x[F.pk]).sort((a, b) => b[F.pk] - a[F.pk]);
-  const protRad = x => radHtml(x, `<span class="stor">${x[F.pk].toFixed(1).replace(".", ",")} g/kr</span><div class="meta">${kr(x[F.p])}${x[F.r] ? ` <span class="tagg t-rab">−${x[F.r]} %</span>` : ""}</div>`);
-  lista("prot-anim", prot.filter(x => x[F.a] === true).slice(0, 15).map(protRad));
-  lista("prot-vego", prot.filter(x => x[F.a] === false).slice(0, 15).map(protRad));
-
-  const rab = poster.filter(x => x[F.r] > 0).sort((a, b) => b[F.r] - a[F.r]).slice(0, 25);
-  lista("rabatter", rab.map(x => radHtml(x, `<span class="tagg t-rab">−${x[F.r]} %</span><div class="stor">${kr(x[F.p])}</div><div class="meta"><s>${kr(x[F.o])}</s></div>`)));
-
-  const ord = [...new Set(Object.values(kallor).flatMap(d => Object.keys(d.sok || {})))];
-  document.getElementById("sokord").innerHTML = ord.map(o => {
-    const traffar = Object.values(kallor).flatMap(d => d.sok?.[o] || []).sort((a, b) => a[F.kg] - b[F.kg]).slice(0, 8);
-    const rader = traffar.map(x => radHtml(x, `<span class="stor">${kr(x[F.kg])}/kg</span><div class="meta">${kr(x[F.p])}</div>`)).join("");
-    return `<div><h3>${esc(o)}</h3><div class="tabell">${rader || '<div class="tom">Inga träffar.</div>'}</div></div>`;
-  }).join("") || '<div class="tom">Inga sökresultat.</div>';
-
-  const fel = Object.entries(kallor).flatMap(([k, d]) => (d.fel || []).filter(Boolean).map(f => `<li><b>${KALLOR[k]}:</b> ${esc(f)}</li>`));
-  document.getElementById("felrader").innerHTML = fel.length ? `<ul class="fel">${fel.join("")}</ul>` : '<p class="under">Inga fel i senaste skanningen.</p>';
-
-  document.getElementById("fot").textContent = "Uppdateras varje morgon. Proteinvärden är ungefärliga. Kontrollera alltid pris och villkor i butiken.";
+  [senaste, icaonline] = await Promise.all([hamta("data/senaste.json"), hamta("data/icaonline.json")]);
+  let dagar = await hamta("data/historik/index.json");
+  if (!Array.isArray(dagar)) dagar = [];
+  if (senaste?.datum && !dagar.includes(senaste.datum)) dagar.unshift(senaste.datum);
+  if (icaonline?.datum && !dagar.includes(icaonline.datum)) dagar.unshift(icaonline.datum);
+  dagar = [...new Set(dagar)].sort().reverse().slice(0, 90);
+  if (!dagar.length) { $("uppd").textContent = "Ingen scan än"; status("Första scannen kommer i morgon bitti."); return; }
+  scans = dagar.map(id => ({ id, data: null }));
+  valt = scans[0].id;
+  await laddaDag(valt);
+  const sel = $("datumval");
+  sel.innerHTML = scans.map(s => `<option value="${s.id}">${formatera(s.id)}</option>`).join("");
+  sel.value = valt; sel.hidden = scans.length < 2;
+  render();
 })();
 </script>
 </body>
