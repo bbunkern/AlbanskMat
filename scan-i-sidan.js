@@ -13,6 +13,7 @@ const SOK = {
 };
 const VEGO = /vego|vegan|växtbaserad|oumph|quorn|anamma|planti|hälsans kök|green ?deli|sojafärs|sojabit|sojastrim/;
 const PROTEIN = [
+  [/potatis/,2,false],
   [/tofu/,13,false],[/tempeh/,19,false],[/seitan/,25,false],[VEGO,15,false],
   [/edamame|sojabön/,11,false],[/jordnötssmör|peanut butter/,25,false],[/pumpakärn/,30,false],
   [/solrosfrö|hampafrö/,22,false],[/jordnöt/,25,false],[/mandel|mandlar/,21,false],
