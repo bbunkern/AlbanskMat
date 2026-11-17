@@ -38,6 +38,7 @@ const PROTEIN = [
 ];
 // Ungefärliga kalorier per 100 g (eller 100 ml). Första träffen vinner.
 const KCAL = [
+  [/sötpotatis/,85],[/potatis/,75],
   [/olivolja|rapsolja|solrosolja|matolja|(^|[^a-zåäö])olja/,880],[/smör|bregott/,720],
   [/jordnötssmör|peanut butter/,600],[/mandel|mandlar|cashew|valnöt|hasselnöt|nötmix|nötter|jordnöt/,600],
   [/solrosfrö|pumpakärn|hampafrö/,570],[/knäckebröd|knäcke/,350],
@@ -45,7 +46,7 @@ const KCAL = [
   [/pasta|spaghetti|makaroner|penne|fusilli|nudlar/,355],[/(linser|kikärt|bönor).*(kokt|burk|tetra|i vatten|i tomat)|(kokt|burk|tetra).*(linser|kikärt|bönor)/,110],
   [/linser|kikärt|bönor/,340],[/edamame|sojabön/,120],[/tofu/,120],[/tempeh/,190],[/seitan/,120],
   [/vego|vegan|växtbaserad|oumph|quorn|sojafärs|sojabit/,170],
-  [/sötpotatis/,85],[/potatis/,75],[/bröd|limpa|baguette|fralla|frallor|tortilla/,250],
+  [/bröd|limpa|baguette|fralla|frallor|tortilla/,250],
   [/bacon/,330],[/chorizo|salsiccia|färskkorv/,270],[/korv/,250],[/skinka|kassler/,120],
   [/kycklingbröst|kycklingfil|innerfil|bröstfil/,110],[/kycklinglår|lårfil/,170],[/kyckling/,160],[/kalkon/,110],
   [/kallrökt lax|gravad lax|varmrökt lax|lax.*(kallrökt|gravad|varmrökt)/,190],[/\blax|^lax/,200],
@@ -85,7 +86,10 @@ const NARING = (typeof window !== "undefined" && window.__NARING) || await fetch
 const nyNaring = {};
 function satNaring(x, varde) {
   if (!x || !varde || !x.kg) return x;
-  const [prot, kcal] = varde;
+  let [prot, kcal] = varde;
+  // Rimlighetskontroll: vissa etiketter anger kJ som kcal (t.ex. 1515 "kcal" per 100 g).
+  if (kcal != null && kcal > 900) kcal = kcal / 4.184 <= 900 ? Math.round(kcal / 4.184) : null;
+  if (prot != null && (prot < 0 || prot > 95)) prot = null;
   if (prot != null) { x.pk = r2(prot * 10 / x.kg); x.n = 1; if (x.a == null) x.a = protein(x.v)?.[1] ?? null; if (prot < 5) { x.pk = null; } }
   if (kcal != null) { x.kk = Math.round(kcal * 10 / x.kg); if (x.c) x.n = 1; }
   return x;
