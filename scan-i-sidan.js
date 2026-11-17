@@ -20,7 +20,7 @@ const PROTEIN = [
   [/havregryn|müsli|granola/,12,false],
   [/matvete|^vete\b|bulgur|couscous|quinoa|pasta|spaghetti|makaroner|penne|fusilli|nudlar/,12,false],
   [/kycklingbröst|kycklingfil|innerfil|bröstfil/,23,true],[/kycklinglår|lårfil/,18,true],
-  [/kycklingkorv/,12,true],[/kyckling/,18,true],[/kalkon/,21,true],[/tonfisk/,24,true],
+  [/kycklingkorv/,12,true],[/kycklingklubb|kycklingben|kycklingving|hel kyckling|kyckling hel|majskyckling hel|kycklinglår(?!fil)/,15,true],[/kyckling/,18,true],[/kalkon/,21,true],[/tonfisk/,24,true],
   [/kallrökt lax|gravad lax|varmrökt lax|lax.*(kallrökt|gravad|varmrökt)/,21,true],
   [/laxfärs/,15,true],[/\blax|^lax/,20,true],[/torsk|sej|kolja|pollock|fiskfil/,17,true],
   [/räk/,18,true],[/fish ?& ?crisp|fiskpinn|panerad/,12,true],
@@ -73,8 +73,18 @@ function jamfor(t) { if (!t) return [null, null]; t = String(t).toLowerCase(); c
 function protein(namn) { const n = namn.toLowerCase(); if (INTE_MAT.test(n)) return null; for (const [re, g0, anim] of PROTEIN) { if (re.test(n)) { const g = g0 ?? (/kokt|burk|tetra|i vatten|i tomat/.test(n) ? 7 : 21); return g >= 5 ? [g, anim] : null; } } return null; }
 function kalorier(namn) { const n = namn.toLowerCase(); if (INTE_MAT.test(n)) return null; for (const [re, k] of KCAL) if (re.test(n)) return k; return null; }
 function post(v, e, p, o, kg, st, b, g = "", i = "") { const r = p && o && o > p ? Math.round(100 * (1 - p / o)) : 0; const pr = protein(v); let pk = null, a = null; if (pr) { if (kg) pk = pr[0] * 10 / kg; else if (st && /ägg/i.test(v)) pk = 7.5 / st; if (pk) a = pr[1]; } const kc = kalorier(v); let kk = null; if (kc) { if (kg) kk = kc * 10 / kg; else if (st && /ägg/i.test(v)) kk = 84 / st; } return { v, e, p: r2(p), o: r2(o), r, kg: r2(kg), b, g, i, pk: r2(pk), a, kk: kk == null ? null : Math.round(kk) }; }
+// Näringsvärden från etiketten (cache: "kalla:id" -> [protein per 100 g, kcal per 100 g]).
+const NARING = (typeof window !== "undefined" && window.__NARING) || await fetch("https://raw.githubusercontent.com/bbunkern/AlbanskMat/main/data/naring.json?t=" + Date.now()).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+const nyNaring = {};
+function satNaring(x, varde) {
+  if (!x || !varde || !x.kg) return x;
+  const [prot, kcal] = varde;
+  if (prot != null) { x.pk = r2(prot * 10 / x.kg); x.n = 1; if (x.a == null) x.a = protein(x.v)?.[1] ?? null; if (prot < 5) { x.pk = null; } }
+  if (kcal != null) x.kk = Math.round(kcal * 10 / x.kg);
+  return x;
+}
 function slaIhop(lista) { const m = new Map(); for (const x of lista) { const k = [x.v.toLowerCase(), x.e, x.p].join("|"); if (m.has(k)) { if (!m.get(k).b.includes(x.b)) m.get(k).b += " · " + x.b; } else m.set(k, { ...x }); } return [...m.values()]; }
-const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk"];
+const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n"];
 const packa = lista => lista.map(x => FALT.map(f => x[f] ?? null));
 function behall(lista) { const prot = lista.filter(x => x.pk).sort((a, b) => b.pk - a.pk).slice(0, MAX_PROTEIN); const ovr = lista.filter(x => !x.pk && x.r >= MIN_RABATT).sort((a, b) => b.r - a.r).slice(0, MAX_DEALS); return packa([...prot, ...ovr]); }
 function sokTraffar(lista, s) { const DJURMAT = ["katt", "hund", "foder", "djur"]; return lista.filter(x => x.kg && s.ord.test(x.v) && ![...s.utom, ...DJURMAT].some(u => x.v.toLowerCase().includes(u))).sort((a, b) => a.kg - b.kg).slice(0, 5).map(x => FALT.map(f => x[f] ?? null)); }
@@ -83,7 +93,7 @@ function utanDubbletter(erbj, sort) { const namn = new Set(erbj.map(x => x.v.toL
 async function iGrupper(lista, n, fn) { const ut = []; for (let i = 0; i < lista.length; i += n) ut.push(...(await Promise.all(lista.slice(i, i + n).map(fn)))); return ut; }
 const fixJson = t => JSON.parse(t.replace(/:\s*undefined(\s*[,}\]])/g, ":null$1"));
 const kr = x => x.toFixed(2).replace(".", ",") + " kr";
-const ut = { kalla: location.hostname, poster: [], sok: {}, fel: [] };
+const ut = { kalla: location.hostname, poster: [], sok: {}, fel: [], naring: nyNaring };
 async function forsok(namn, fn) { try { await fn(); } catch (e) { ut.fel.push(namn + ": " + e.message); } }
 if (location.hostname === "www.ica.se") {
   const alla = [];
@@ -99,7 +109,9 @@ if (location.hostname === "www.ica.se") {
       let namn = d.name + (d.brand ? ` (${d.brand})` : "") + (d.packageInformation ? `, ${d.packageInformation}` : "");
       let info = (o.traits || []).filter(t => ["Stammis", "Klipp", "Superklipp"].includes(t)).join(", ");
       if (info.includes("Stammis")) info += " – kräver ICA-kort";
-      alla.push(post(namn, d.mechanicInfo || "", p, ord, kg, st, butik, (o.validTo || "").slice(0, 10), info));
+      const x = post(namn, d.mechanicInfo || "", p, ord, kg, st, butik, (o.validTo || "").slice(0, 10), info);
+      x.u = "https://handlaprivatkund.ica.se/stores/1003855/search?q=" + encodeURIComponent(d.name);
+      alla.push(x);
     }
   });
   ut.poster = behall(slaIhop(alla));
@@ -107,7 +119,9 @@ if (location.hostname === "www.ica.se") {
 if (location.hostname === "handlaprivatkund.ica.se") {
   // En sökning i taget med paus emellan, och avbryt direkt om ICA visar sin bot-kontroll.
   const PAUS_MS = 3000;
-  function icaPost(p, butik) { const pris = tal(p.price?.current?.amount); if (!pris) return null; const ord = tal(p.price?.original?.amount); const lbl = p.price?.unit?.label || ""; const kg = /kg|liter/.test(lbl) ? tal(p.price?.unit?.current?.amount) : null; return post(p.name, kr(pris), pris, ord, kg, null, butik + " (online)"); }
+  function icaPost(p, butik) { const pris = tal(p.price?.current?.amount); if (!pris) return null; const ord = tal(p.price?.original?.amount); const lbl = p.price?.unit?.label || ""; const kg = /kg|liter/.test(lbl) ? tal(p.price?.unit?.current?.amount) : null; const x = post(p.name, kr(pris), pris, ord, kg, null, butik + " (online)"); x.id = p.retailerProductId; x.u = `https://handlaprivatkund.ica.se/stores/${ICA_EHANDEL[butik]}/products/${encodeURIComponent(p.name.toLowerCase().replace(/[^a-z0-9åäö]+/g, "-"))}/${p.retailerProductId}`; return satNaring(x, NARING["ica:" + p.retailerProductId]); }
+  function icaNaring(h) { const tal1 = re => { const m = h.match(re); return m ? parseFloat(m[1].replace(",", ".")) : null; }; const prot = tal1(/<td>Protein<\/td><td>([\d.,]+)\s*g/i), kcal = tal1(/<td>Energi \(kcal\)<\/td><td>([\d.,]+)\s*kcal/i); return prot == null && kcal == null ? null : [prot, kcal]; }
+  const MAX_NYA = 40;
   const ord = [...new Set([...Object.values(SOK).map(s => s.q), ...SORTIMENT])];
   const alla = [], perOrd = {};
   let stopp = false;
@@ -122,6 +136,18 @@ if (location.hostname === "handlaprivatkund.ica.se") {
       perOrd[q] = [];
       for (const p of Object.values(st.data?.products?.productEntities || {})) { const x = icaPost(p, butik); if (x) { alla.push(x); perOrd[q].push(x); } }
     } catch (e) { ut.fel.push("ICA Handla " + q + ": " + e.message); }
+    await new Promise(r => setTimeout(r, PAUS_MS));
+  }
+  // Hämta etiketter för de bästa kandidaterna som saknar näringsdata
+  const kandidater = utanDubbletter([], alla).filter(x => x.pk && !x.n && x.id).sort((a, b) => b.pk - a.pk).slice(0, MAX_NYA);
+  for (const x of kandidater) {
+    if (stopp) break;
+    try {
+      const h = await fetch(x.u).then(r => r.text());
+      if (!h.includes("Näringsvärde") && /Human Verification|confirm you are human/i.test(h)) { stopp = true; ut.fel.push("ICA Handla: bot-kontroll vid näringshämtning – avbröt"); break; }
+      const v = icaNaring(h);
+      if (v) { nyNaring["ica:" + x.id] = v; for (const y of alla) if (y.id === x.id) satNaring(y, v); }
+    } catch (e) { ut.fel.push("ICA Handla näring: " + e.message); }
     await new Promise(r => setTimeout(r, PAUS_MS));
   }
   ut.poster = behall(utanDubbletter([], alla));
@@ -140,7 +166,8 @@ if (location.hostname === "www.hemkop.se") {
       const namn = p.name + (p.manufacturer ? ` (${p.manufacturer})` : "") + (p.displayVolume ? `, ${p.displayVolume}` : "");
       let info = k.description || "";
       if (k.campaignType === "LOYALTY") info = ("Klubbpris " + info).trim();
-      alla.push(post(namn, k.cartLabel || "", pris, ord, kg, st, butik, k.endDate || "", info));
+      const x = post(namn, k.cartLabel || "", pris, ord, kg, st, butik, k.endDate || "", info);
+      x.id = p.code; x.u = "https://www.hemkop.se/produkt/" + p.code; alla.push(x);
     }
   });
   let sortiment = [];
@@ -150,10 +177,25 @@ if (location.hostname === "www.hemkop.se") {
       const pris = tal(p.priceValue ?? p.price); if (!pris) continue;
       const kg = ["kg", "l"].includes(p.comparePriceUnit) ? tal(p.comparePrice) : null;
       const namn = p.name + (p.manufacturer ? ` (${p.manufacturer})` : "") + (p.displayVolume ? `, ${p.displayVolume}` : "");
-      sortiment.push(post(namn, kr(pris), pris, null, kg, null, "Hemköp (online)"));
+      const x = post(namn, kr(pris), pris, null, kg, null, "Hemköp (online)");
+      x.id = p.code; x.u = "https://www.hemkop.se/produkt/" + p.code; sortiment.push(x);
     }
   });
-  ut.poster = behall([...slaIhop(alla), ...utanDubbletter(slaIhop(alla), sortiment)]);
+  const hemAlla = [...slaIhop(alla), ...utanDubbletter(slaIhop(alla), sortiment)];
+  await forsok("Hemköp näring", async () => {
+    const koder = [...new Set(hemAlla.filter(x => x.pk && x.id && !NARING["hemkop:" + x.id]).map(x => x.id))];
+    await iGrupper(koder, 4, async kod => {
+      try {
+        const d = await fetch("/axfood/rest/p/" + encodeURIComponent(kod)).then(r => r.json());
+        const det = (d.nutrientHeaders || []).flatMap(h => h.nutrientDetails || []);
+        const hitta = (typ, enh) => { const n = det.find(x => x.nutrientTypeCode?.toLowerCase() === typ && (!enh || x.measurementUnitCode === enh)); return n ? parseFloat(String(n.quantityContained).replace(",", ".")) : null; };
+        const v = [hitta("protein"), hitta("energi", "kilokalori")];
+        if (v[0] != null || v[1] != null) nyNaring["hemkop:" + kod] = v;
+      } catch (e) {}
+    });
+    for (const x of hemAlla) satNaring(x, NARING["hemkop:" + x.id] || nyNaring["hemkop:" + x.id]);
+  });
+  ut.poster = behall(hemAlla);
   for (const [rubrik, s] of Object.entries(SOK)) await forsok("Hemköp-sök " + s.q, async () => {
     const j = await fetch(`/search?q=${encodeURIComponent(s.q)}&page=0&size=100`).then(r => r.json());
     const lista = (j.results || []).map(p => { const pris = tal(p.priceValue ?? p.price); const kg = ["kg", "l"].includes(p.comparePriceUnit) ? tal(p.comparePrice) : null; const namn = p.name + (p.manufacturer ? ` (${p.manufacturer})` : "") + (p.displayVolume ? `, ${p.displayVolume}` : ""); return pris ? post(namn, kr(pris), pris, null, kg, null, "Hemköp (online)") : null; }).filter(Boolean);
@@ -161,7 +203,7 @@ if (location.hostname === "www.hemkop.se") {
   });
 }
 if (location.hostname === "www.lidl.se") {
-  function lidlPost(d, kravRabatt) { const p = d.price || {}; if (kravRabatt && (!p.discount || !p.oldPrice)) return null; const pris = tal(p.price); if (!pris) return null; const forp = p.packaging?.text || "", bas = (p.basePrice?.text || "").trim(); let kg = null; if (bas.startsWith("/kg")) kg = pris; else if (vikt(forp)) kg = pris / vikt(forp); else if (/kr\/(kg|l)\b/.test(bas)) kg = tal(bas); const e = kr(pris) + (forp ? " / " + forp : "") + (bas.startsWith("/kg") ? "/kg" : ""); const badge = d.stockAvailability?.badgeInfo?.badges?.[0]?.text || ""; return post(d.fullTitle || d.title || "", e, pris, tal(p.oldPrice), kg, null, LIDL, badge); }
+  function lidlPost(d, kravRabatt) { const p = d.price || {}; if (kravRabatt && (!p.discount || !p.oldPrice)) return null; const pris = tal(p.price); if (!pris) return null; const forp = p.packaging?.text || "", bas = (p.basePrice?.text || "").trim(); let kg = null; if (bas.startsWith("/kg")) kg = pris; else if (vikt(forp)) kg = pris / vikt(forp); else if (/kr\/(kg|l)\b/.test(bas)) kg = tal(bas); const e = kr(pris) + (forp ? " / " + forp : "") + (bas.startsWith("/kg") ? "/kg" : ""); const badge = d.stockAvailability?.badgeInfo?.badges?.[0]?.text || ""; const x = post(d.fullTitle || d.title || "", e, pris, tal(p.oldPrice), kg, null, LIDL, badge); if (d.canonicalPath) x.u = "https://www.lidl.se" + d.canonicalPath; return x; }
   async function lidlSok(param, krav) { const lista = []; let off = 0, tot = 1; while (off < tot && off < 600) { const j = await fetch(`/q/api/search?assortment=SE&locale=sv_SE&version=v2.0.0&fetchsize=60&offset=${off}&${param}`).then(r => r.json()); tot = j.numFound || 0; if (!j.items?.length) break; off += j.items.length; for (const it of j.items) { const x = lidlPost(it.gridbox?.data || {}, krav); if (x) lista.push(x); } } return lista; }
   await forsok(LIDL, async () => { ut.poster = behall(await lidlSok("category.id=10068374", false)); });
   for (const [rubrik, s] of Object.entries(SOK)) await forsok("Lidl-sök " + s.q, async () => { ut.sok[rubrik] = sokTraffar(await lidlSok("q=" + encodeURIComponent(s.q), false), s); });
