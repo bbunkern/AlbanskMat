@@ -1,4 +1,4 @@
-# Matdeals
+# AlbanskMat
 
 Daglig skanning av veckoerbjudanden och sökpriser från ICA, Hemköp och Lidl i Stockholm, rankade efter **protein per krona** och rabatt.
 
