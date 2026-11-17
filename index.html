@@ -37,6 +37,8 @@
   .lista { background: var(--kort); border-radius: 16px; overflow: hidden; }
   .rad { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--linje); }
   .rad:last-child { border-bottom: 0; }
+  a.rad { color: inherit; text-decoration: none; cursor: pointer; }
+  a.rad:hover, a.rad:active { background: var(--linje); }
   .nr { width: 20px; text-align: center; font-weight: 700; color: var(--svag); font-size: 14px; flex: none; }
   .rad.topp .nr { color: var(--gron); }
   .mitt { flex: 1; min-width: 0; }
@@ -134,11 +136,10 @@
 
   <section id="flik-protein">
     <div class="seg liten" id="proteintyp" style="margin-top:6px">
-      <button data-typ="anim" class="aktiv">🥩 Animaliskt</button>
+      <button data-typ="hel" class="aktiv">🥩 Riktigt kött</button>
       <button data-typ="vego">🌱 Vegetariskt</button>
-      <button data-typ="hel">🍗 Icke-slop</button>
     </div>
-    <h2 id="prot-rubrik">Animaliskt protein per krona</h2>
+    <h2 id="prot-rubrik">Riktigt kött – protein per krona</h2>
     <p class="forkl">Hela sortimentet i dina butiker – både erbjudanden och ordinarie pris. Högst upp = mest protein för pengarna.</p>
     <div id="protein-lista"></div>
 
@@ -217,18 +218,27 @@
 
   <div id="fel" class="fel"></div>
   <div class="fot">ICA Nära Roslagstull · ICA Supermarket Vanadis · Hemköp Birger Jarlsgatan · Hemköp Matglädjen · Lidl Sveavägen.
-    Proteinhalten är uppskattad från typiska näringsvärden per varutyp. Sökningarna använder e-handelspriser, som kan skilja sig lite från butiken.</div>
+    Protein och kcal kommer från varans näringsdeklaration hos Hemköp och ICA Handla. Värden märkta ≈ är uppskattade från typiska värden (Lidl och ICA:s butikserbjudanden visar ingen näringsdeklaration). Tryck på en vara för att se innehållet hos butiken. Sökningarna använder e-handelspriser, som kan skilja sig lite från butiken.</div>
 </div>
 
 <script>
-const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk"];
+const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n"];
+// En rad blir en länk till produktsidan (där innehållsförteckning och näringsvärden finns) när länk finns.
+const radStart = (x, klass = "") => x.u && /^https:\/\//.test(x.u)
+  ? `<a class="rad ${klass}" href="${esc(x.u)}" target="_blank" rel="noopener">` : `<div class="rad ${klass}">`;
+const radSlut = x => x.u && /^https:\/\//.test(x.u) ? `</a>` : `</div>`;
+const ungefar = x => x.n === 1 ? "" : `<span title="Uppskattat – butiken visar ingen näringsdeklaration">≈ </span>`;
 const KALLOR = ["ica", "icaonline", "hemkop", "lidl"];
 const SOKORD = {
   Lax: /^(färsk |fryst |svensk |norsk |hel )?lax|laxfil|laxsida|laxbit|laxrygg|(kallrökt|gravad|varmrökt) lax/i,
   Potatis: /potatis/i, Matvete: /matvete|^vete\b/i, Kvarg: /kvarg/i,
 };
-// Icke-slop: rent kött, fisk och ägg – hela bitar och färs, inget processat och ingen ost/mejeri.
-const HEL_RA = /kyckling|kalkon|lax|torsk|sej|kolja|pollock|fiskfil|tonfisk|makrill|sill|räk|fläskfil|ytterfil|kotlett|karré|fläsklägg|sidfläsk|fläskkött|fläskbog|biff|entrecôte|entrecote|oxfil|fransyska|högrev|nötstek|nötkött|rostbiff|lammstek|lammfil|nötfärs|köttfärs|blandfärs|fläskfärs|kycklingfärs|lammfärs|(^|[^a-zåäö])ägg($|[^a-zåäö])/i;
+// Riktigt kött: rent kött och fisk – hela bitar och färs, inget processat och ingen ost/mejeri/ägg.
+const HEL_RA = /kyckling|kalkon|lax|torsk|sej|kolja|pollock|fiskfil|tonfisk|makrill|sill|räk|fläskfil|ytterfil|kotlett|karré|fläsklägg|sidfläsk|fläskkött|fläskbog|biff|entrecôte|entrecote|oxfil|fransyska|högrev|nötstek|nötkött|rostbiff|lammstek|lammfil|nötfärs|köttfärs|blandfärs|fläskfärs|kycklingfärs|lammfärs/i;
+// Vegetariskt: allt utan kött/fisk, inklusive mejeri och ägg.
+const MEJERI_AGG = /ost|kvarg|keso|cottage|skyr|yoghurt|mjölk|kesella|paneer|halloumi|mozzarella|feta|(^|[^a-zåäö])ägg($|[^a-zåäö])/i;
+const KOTT_FISK = /kyckling|kalkon|lax|torsk|sej|kolja|fisk|tonfisk|makrill|sill|räk|fläsk|biff|kött|färs|skinka|korv|bacon|salami|kassler|lamm|kotlett|karré|högrev|entrecôte|oxfil|chorizo|salsiccia|pastej|ansjovis|kaviar/i;
+const arVego = x => x.a === false || (x.a === true && MEJERI_AGG.test(x.v) && !KOTT_FISK.test(x.v));
 const HEL_INTE = /ost|kvarg|keso|cottage|skyr|yoghurt|mjölk|nugget|burgare|bullar|korv|bacon|skinka|kassler|pålägg|pastej|salami|kebab|schnitzel|cordon|panerad|griljerad|fiskpinn|crisp|tempura|krokett|färdig|grillad|kokt|stekt|rökt|gravad|marinerad|i sås|sallad|wrap|pizza|paj|soppa|röra|spread|chorizo|salsiccia|färskkorv|pulled|strimlad.*(stekt|grillad)|kaviar|rom |pudding|dressing|krydd|gryta|lasagne|pasta|piroger|dumplings|gyoza|vår?rull|sushi|rätt|månader|från \d|\d år|stroganoff|risotto|mos|grönsak|tagliatelle|nudlar|spaghetti|pannbiff|mortadella|skivad|deli|port\b|\/1 ?p\b|1p\b|biffar|hamburg|dafgårds|gratäng|buffalo|bbq|teriyaki|glaserad|tikka|tandoori/i;
 const arHel = x => x.a === true && HEL_RA.test(x.v) && !HEL_INTE.test(x.v);
 const INTE_SOK =/chips|mos|gratäng|sås|paj|pudding|katt|hund|sötpotatis|sallad|färs/i;
@@ -238,7 +248,7 @@ const kr = x => x == null ? "–" : x.toFixed(2).replace(".", ",") + " kr";
 const tillObj = rad => Object.fromEntries(FALT.map((f, i) => [f, rad[i]]));
 const kedja = b => /^ICA/.test(b) ? "ica" : /^Hemköp/.test(b) ? "hemkop" : /^Lidl/.test(b) ? "lidl" : "";
 
-let scans = [], valt = null, flik = "protein", typ = "anim", kedjefilter = "", sokord = "";
+let scans = [], valt = null, flik = "protein", typ = "hel", kedjefilter = "", sokord = "";
 
 function chips(butiker) {
   return String(butiker || "").split(" · ").map(b => `<span class="chip ${kedja(b)}">${esc(b)}</span>`).join("");
@@ -268,20 +278,20 @@ function render() {
   const d = data();
   if (!d) return;
   // Protein
-  const prot = d.poster.filter(x => x.pk && (typ === "anim" ? x.a : typ === "hel" ? arHel(x) : x.a === false))
+  const prot = d.poster.filter(x => x.pk && (typ === "hel" ? arHel(x) : arVego(x)))
                       .sort((a, b) => b.pk - a.pk).slice(0, 40);
-  $("prot-rubrik").textContent = typ === "anim" ? "Animaliskt protein per krona" : typ === "hel" ? "Icke-slop: rent kött & fisk per krona" : "Vegetariskt protein per krona";
+  $("prot-rubrik").textContent = typ === "hel" ? "Riktigt kött – protein per krona" : "Vegetariskt protein per krona";
   const bast = prot[0]?.pk || 1;
   $("protein-lista").className = "lista" + (typ === "vego" ? " vego" : "");
   $("protein-lista").innerHTML = prot.length ? prot.map((x, i) => `
-    <div class="rad ${i < 3 ? "topp" : ""}">
+    ${radStart(x, i < 3 ? "topp" : "")}
       <div class="nr">${i + 1}</div>
       <div class="mitt"><div class="namn">${esc(x.v)}</div>${meta(x)}
         <div class="stapel"><div style="width:${Math.max(4, Math.round(100 * x.pk / bast))}%"></div></div></div>
-      <div class="hoger"><div class="stor">${x.pk.toFixed(1)}</div><div class="enhet">g protein/kr</div>
-        ${x.kk ? `<div class="kcal">${x.kk}</div><div class="enhet">kcal/kr</div>` : ""}
+      <div class="hoger"><div class="stor">${ungefar(x)}${x.pk.toFixed(1)}</div><div class="enhet">g protein/kr</div>
+        ${x.kk ? `<div class="kcal">${ungefar(x)}${x.kk}</div><div class="enhet">kcal/kr</div>` : ""}
         <div class="enhet">${kr(100 / x.pk)}/100 g</div></div>
-    </div>`).join("") : `<div class="tom">Inga proteinerbjudanden den här dagen.</div>`;
+    ${radSlut(x)}`).join("") : `<div class="tom">Inga proteinvaror den här dagen.</div>`;
 
   // Mina sökningar – sökträffar + veckans erbjudanden som matchar
   $("sok").innerHTML = Object.entries(d.sok).map(([rubrik, rader]) => {
@@ -291,12 +301,12 @@ function render() {
     const topp = rader.filter(x => { const k = x.v + x.b; if (sedda.has(k)) return false; sedda.add(k); return x.kg; })
                       .sort((a, b) => a.kg - b.kg).slice(0, 5);
     return `<div class="sokkort"><h3>${esc(rubrik)}</h3><div class="lista">${topp.length ? topp.map((x, i) => `
-      <div class="rad ${i === 0 ? "topp" : ""}">
+      ${radStart(x, i === 0 ? "topp" : "")}
         <div class="nr">${i + 1}</div>
         <div class="mitt"><div class="namn">${esc(x.v)}</div>
           <div class="meta">${chips(x.b)} <span>${esc(x.e)}</span></div></div>
         <div class="hoger kg">${kr(x.kg).replace(" kr", "")} <small>kr/kg</small></div>
-      </div>`).join("") : `<div class="tom">Inget hittat.</div>`}</div></div>`;
+      ${radSlut(x)}`).join("") : `<div class="tom">Inget hittat.</div>`}</div></div>`;
   }).join("");
 
   // Bra deals
@@ -306,10 +316,10 @@ function render() {
     .sort((a, b) => b.r - a.r);
   $("deals-lista").className = "lista";
   $("deals-lista").innerHTML = deals.length ? deals.map(x => `
-    <div class="rad">
+    ${radStart(x)}
       <div class="mitt"><div class="namn">${esc(x.v)}</div>${meta(x)}</div>
       <div class="hoger"><span class="rabatt">-${x.r}%</span></div>
-    </div>`).join("") : `<div class="tom">Inga deals matchar.</div>`;
+    ${radSlut(x)}`).join("") : `<div class="tom">Inga deals matchar.</div>`;
 
   $("fel").innerHTML = d.fel.length ? "⚠ " + d.fel.map(esc).join("<br>⚠ ") : "";
   const s = scans.find(s => s.id === valt);
