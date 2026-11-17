@@ -619,8 +619,10 @@ $("kd-lista").onclick = async e => {
 
 // Data: molnskanningen (ica, hemkop, lidl) i data/senaste.json + data/historik/,
 // ICA Handla från Macen i data/icaonline.json.
+// Datan uppdateras dagligen i GitHub-repot. På andra adresser (t.ex. albanskmat.pages.dev) hämtas den därifrån.
+const DATA_BAS = /github\.io$|^localhost$|^127\.0\.0\.1$/.test(location.hostname) ? "" : "https://bbunkern.github.io/AlbanskMat/";
 async function hamta(url) {
-  try { const r = await fetch(url + "?t=" + Date.now(), { cache: "no-store" }); return r.ok ? await r.json() : null; } catch (e) { return null; }
+  try { const r = await fetch(DATA_BAS + url + "?t=" + Date.now(), { cache: "no-store" }); return r.ok ? await r.json() : null; } catch (e) { return null; }
 }
 let senaste = null, icaonline = null;
 async function laddaDag(id) {

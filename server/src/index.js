@@ -2,7 +2,7 @@
 // Alla anrop kräver lösenordet (hemligheten LOSENORD) i headern "X-Losen".
 
 const MODELL = "@cf/meta/llama-4-scout-17b-16e-instruct";
-const TILLATNA_URSPRUNG = ["https://bbunkern.github.io", "http://localhost:8765", "http://127.0.0.1:8765"];
+const TILLATNA_URSPRUNG = ["https://albanskmat.pages.dev", "https://bbunkern.github.io","http://localhost:8765", "http://127.0.0.1:8765"];
 const FALT = ["vara", "varumarke", "mangd", "pris", "ordinarie_pris", "rabatt_procent", "kr_per_kg", "bast_fore", "typ", "protein_per_100g", "animaliskt"];
 const TYPER = ["kortdatum", "hyllpris", "erbjudande"];
 
