@@ -142,6 +142,14 @@ async function iGrupper(lista, n, fn) { const ut = []; for (let i = 0; i < lista
 const fixJson = t => JSON.parse(t.replace(/:\s*undefined(\s*[,}\]])/g, ":null$1"));
 const kr = x => x.toFixed(2).replace(".", ",") + " kr";
 const ut = { kalla: location.hostname, poster: [], sok: {}, fel: [], naring: nyNaring };
+function aterskapa(rad) {
+  const o = Object.fromEntries(FALT.map((f, i) => [f, rad[i] ?? null]));
+  const x = post(o.v, o.e, o.p, o.o, o.kg, null, o.b, o.g || "", o.i || "");
+  x.u = o.u; x.k = o.k; x.ur = o.ur; x.id = o.k ? String(o.k).split(":")[1] : null;
+  return satNaring(x, o.k ? (NARING[o.k] || nyNaring[o.k]) : null);
+}
+// Omräkningsläge (används av molnet för ICA Handla-data som skannats tidigare)
+if (typeof window !== "undefined" && Array.isArray(window.__OMRAKNA)) return { poster: behall(window.__OMRAKNA.map(aterskapa)), sok: {}, fel: [] };
 async function forsok(namn, fn) { try { await fn(); } catch (e) { ut.fel.push(namn + ": " + e.message); } }
 if (location.hostname === "www.ica.se") {
   const alla = [];
@@ -165,9 +173,21 @@ if (location.hostname === "www.ica.se") {
   ut.poster = behall(slaIhop(alla));
 }
 if (location.hostname === "handlaprivatkund.ica.se") {
-  // En sökning i taget med paus emellan, och avbryt direkt om ICA visar sin bot-kontroll.
-  const PAUS_MS = 8000;
-  function icaPost(p, butik) { const pris = tal(p.price?.current?.amount); if (!pris) return null; const ord = tal(p.price?.original?.amount); const lbl = p.price?.unit?.label || ""; const kg = /kg|liter/.test(lbl) ? tal(p.price?.unit?.current?.amount) : null; const x = post(p.name, kr(pris), pris, ord, kg, null, butik + " (online)"); x.id = p.retailerProductId; x.k = "ica:" + p.retailerProductId; x.ur = p.countryOfOrigin || null; x.u = `https://handlaprivatkund.ica.se/stores/${ICA_EHANDEL[butik]}/products/${encodeURIComponent(p.name.toLowerCase().replace(/[^a-z0-9åäö]+/g, "-"))}/${p.retailerProductId}`; return satNaring(x, NARING["ica:" + p.retailerProductId]); }
+  // ICA:s bot-kontroll slår till efter ca 44 anrop per körning, oavsett takt. Därför högst ~40 anrop:
+  // 1) etiketter för de bästa varorna som saknar etikett, 2) de bevakade sökorden, 3) en roterande del av sortimentet.
+  // Varor från tidigare körningar ligger kvar (räknas om) tills de söks fram igen.
+  const PAUS_MS = 6000, MAX_ANROP = 40, MAX_ETIKETTER = 14, SORT_PER_DAG = 18;
+  let anrop = 0, stopp = false;
+  const bot = h => !h.includes("__INITIAL_STATE__") && !h.includes("Näringsvärde") && /Human Verification|confirm you are human|awsWafCookieDomainList/i.test(h);
+  async function hamtaSida(url) {
+    if (stopp || anrop >= MAX_ANROP) return null;
+    anrop++;
+    const h = await fetch(url).then(r => r.text());
+    await new Promise(r => setTimeout(r, PAUS_MS));
+    if (bot(h)) { stopp = true; ut.fel.push(`ICA Handla: bot-kontroll efter ${anrop} anrop – avbröt (resten tas nästa dag)`); return null; }
+    return h;
+  }
+  function icaPost(p, butik) { const pris = tal(p.price?.current?.amount); if (!pris) return null; const ord = tal(p.price?.original?.amount); const lbl = p.price?.unit?.label || ""; const kg = /kg|liter/.test(lbl) ? tal(p.price?.unit?.current?.amount) : null; const x = post(p.name, kr(pris), pris, ord, kg, null, butik + " (online)"); x.id = p.retailerProductId; x.k = "ica:" + p.retailerProductId; x.ur = p.countryOfOrigin || null; x.u = `https://handlaprivatkund.ica.se/stores/${ICA_EHANDEL[butik]}/products/${encodeURIComponent(p.name.toLowerCase().replace(/[^a-z0-9åäö]+/g, "-"))}/${p.retailerProductId}`; return satNaring(x, NARING[x.k]); }
   function icaNaring(h) {
     const tal1 = re => { const m = h.match(re); return m ? parseFloat(m[1].replace(",", ".")) : null; };
     const prot = tal1(/<td>Protein<\/td><td>([\d.,]+)\s*g/i), kcal = tal1(/<td>Energi \(kcal\)<\/td><td>([\d.,]+)\s*kcal/i);
@@ -178,37 +198,39 @@ if (location.hostname === "handlaprivatkund.ica.se") {
     if (prot == null && kcal == null && !ingr && !rader.length) return null;
     return [prot, kcal, { i: ingr || null, t: rader, b: (tabell.match(/<th>Näringsvärde<\/th><th>([^<]+)<\/th>/i) || [])[1] || "100 g" }];
   }
-  const MAX_NYA = 40;
-  const ord = [...new Set([...Object.values(SOK).map(s => s.q), ...SORTIMENT])];
-  const alla = [], perOrd = {};
-  let stopp = false;
-  for (const [butik, id] of Object.entries(ICA_EHANDEL)) for (const q of ord) {
-    if (stopp) break;
-    try {
-      const h = await fetch(`/stores/${id}/search?q=${encodeURIComponent(q)}`).then(r => r.text());
-      const a = h.indexOf("window.__INITIAL_STATE__=");
-      if (a < 0) { stopp = true; ut.fel.push(`ICA Handla: bot-kontroll efter ${Object.keys(perOrd).length} sökningar – avbröt`); break; }
-      const b = h.indexOf("</script>", a + 25);
-      const st = fixJson(h.slice(a + 25, b).trim().replace(/;$/, ""));
-      perOrd[q] = [];
-      for (const p of Object.values(st.data?.products?.productEntities || {})) { const x = icaPost(p, butik); if (x) { alla.push(x); perOrd[q].push(x); } }
-    } catch (e) { ut.fel.push("ICA Handla " + q + ": " + e.message); }
-    await new Promise(r => setTimeout(r, PAUS_MS));
-  }
-  // Hämta etiketter för de bästa kandidaterna som saknar näringsdata
-  const kandidater = utanDubbletter([], alla).filter(x => (x.pk || (x.c && x.kk)) && x.id && !harInfo(NARING["ica:" + x.id])).sort((a, b) => (b.pk || b.kk / 100) - (a.pk || a.kk / 100)).slice(0, MAX_NYA);
+  // Tidigare varor (från förra körningen) som utgångsläge
+  const forra = await fetch("https://raw.githubusercontent.com/bbunkern/AlbanskMat/main/data/icaonline.json?t=" + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null);
+  const karta = new Map();
+  for (const rad of forra?.icaonline?.poster || []) { const x = aterskapa(rad); if (x.k) karta.set(x.k, x); }
+  const forraSok = forra?.icaonline?.sok || {};
+
+  // 1) Etiketter för de bästa kandidaterna
+  const kandidater = [...karta.values()].filter(x => (x.pk || (x.c && x.kk)) && x.id && !harInfo(NARING[x.k])).sort((a, b) => (b.pk || b.kk / 100) - (a.pk || a.kk / 100)).slice(0, MAX_ETIKETTER);
   for (const x of kandidater) {
-    if (stopp) break;
     try {
-      const h = await fetch(x.u).then(r => r.text());
-      if (!h.includes("Näringsvärde") && /Human Verification|confirm you are human/i.test(h)) { stopp = true; ut.fel.push("ICA Handla: bot-kontroll vid näringshämtning – avbröt"); break; }
+      const h = await hamtaSida(x.u); if (!h) break;
       const v = icaNaring(h);
-      if (v) { nyNaring["ica:" + x.id] = v; for (const y of alla) if (y.id === x.id) satNaring(y, v); }
+      if (v) { nyNaring[x.k] = v; satNaring(x, v); }
     } catch (e) { ut.fel.push("ICA Handla näring: " + e.message); }
-    await new Promise(r => setTimeout(r, PAUS_MS));
   }
-  ut.poster = behall(utanDubbletter([], alla));
-  for (const [rubrik, s] of Object.entries(SOK)) if (perOrd[s.q]) ut.sok[rubrik] = sokTraffar(perOrd[s.q], s);
+  // 2) Bevakade sökord + 3) roterande del av sortimentet
+  const dag = Math.floor(Date.now() / 86400000), sortOrd = SORTIMENT.filter(q => !Object.values(SOK).some(s => s.q === q));
+  const start = (dag * SORT_PER_DAG) % sortOrd.length;
+  const idag = [...Object.values(SOK).map(s => s.q), ...[...sortOrd, ...sortOrd].slice(start, start + SORT_PER_DAG)];
+  const perOrd = {};
+  for (const [butik, id] of Object.entries(ICA_EHANDEL)) for (const q of idag) {
+    try {
+      const h = await hamtaSida(`/stores/${id}/search?q=${encodeURIComponent(q)}`); if (!h) break;
+      const a = h.indexOf("window.__INITIAL_STATE__=");
+      if (a < 0) continue;
+      const st = fixJson(h.slice(a + 25, h.indexOf("</script>", a + 25)).trim().replace(/;$/, ""));
+      perOrd[q] = [];
+      for (const p of Object.values(st.data?.products?.productEntities || {})) { const x = icaPost(p, butik); if (x) { karta.set(x.k, x); perOrd[q].push(x); } }
+    } catch (e) { ut.fel.push("ICA Handla " + q + ": " + e.message); }
+  }
+  ut.poster = behall([...karta.values()]);
+  for (const [rubrik, s] of Object.entries(SOK)) ut.sok[rubrik] = perOrd[s.q] ? sokTraffar(perOrd[s.q], s) : (forraSok[rubrik] || []);
+  ut.anrop = anrop;
 }
 if (location.hostname === "www.hemkop.se") {
   const alla = [];

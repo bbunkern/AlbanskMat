@@ -46,6 +46,18 @@ for (const [falt, url] of SAJTER) {
   skann[falt] = r ?? { kalla: url, poster: [], sok: {}, fel: [fel] };
   rader.push(`| ${falt} | ${ok ? "✅" : "❌"} | ${r?.poster.length ?? 0} | ${antalSok} | ${(fel || r?.fel.join("; ") || "").slice(0, 150)} |`);
 }
+// ICA Handla skannas från Macen och stoppas ibland av ICA:s bot-kontroll. Räkna om de senast sparade
+// ICA-varorna med aktuella regler och etiketter, så att värdena alltid är rätt även de dagar skanningen misslyckas.
+let icaOmraknad = false;
+const ica = lasJson("data/icaonline.json", null);
+if (ica?.icaonline?.poster?.length) {
+  try {
+    await page.goto("about:blank");
+    await page.evaluate(([n, p]) => { window.__NARING = n; window.__OMRAKNA = p; }, [naring, ica.icaonline.poster]);
+    const r = await page.evaluate(SKRIPT);
+    if (r?.poster?.length) { ica.icaonline.poster = r.poster; ica.omraknad = `${datum} ${tid}`; icaOmraknad = true; }
+  } catch (e) { console.error("Omräkning av ICA Handla misslyckades:", e.message); }
+}
 await browser.close();
 
 const tabell = ["| Källa | Funkar | Erbjudanden | Sökträffar | Fel |", "|---|---|---|---|---|", ...rader].join("\n");
@@ -58,6 +70,7 @@ mkdirSync("data/historik", { recursive: true });
 const json = JSON.stringify(skann);
 writeFileSync("data/senaste.json", json);
 writeFileSync("data/naring.json", JSON.stringify(naring));
+if (icaOmraknad) writeFileSync("data/icaonline.json", JSON.stringify(ica));
 writeFileSync(`data/historik/${datum}.json`, json);
 // Lista över alla dagar så att sidan kan visa en datumväljare.
 const dagar = readdirSync("data/historik").filter(f => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).map(f => f.slice(0, 10)).sort().reverse();
