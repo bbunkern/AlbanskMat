@@ -107,27 +107,32 @@ function satNaring(x, varde) {
   // Rimlighetskontroll: vissa etiketter anger kJ som kcal (t.ex. 1515 "kcal" per 100 g).
   if (kcal != null && kcal > 900) kcal = kcal / 4.184 <= 900 ? Math.round(kcal / 4.184) : null;
   if (prot != null && (prot < 0 || prot > 95)) prot = null;
-  // Kött med ben: märkena räknar olika. Ett högt proteinvärde (≥ 17 g, som rent kycklingkött) betyder att etiketten
-  // gäller bara köttet – då räknas både ben och tillsatt saltlake (andelen kött i ingredienserna, t.ex. 87 %) bort.
-  // Ett lägre värde betyder att etiketten redan gäller varan som den säljs, med ben och vatten – då räknas inget om.
+  // Kött med ben: märkena räknar etiketten på olika sätt. Jämför med typvärdet R för rent kött och välj närmaste grund:
+  //   bara köttet ≈ R  → × kött-% (saltlake) × ätlig del
+  //   kött + saltlake, utan ben ≈ R × kött-%  → × ätlig del
+  //   varan som den säljs (med ben) ≈ R × kött-% × ätlig del  → ingen omräkning
   const ingr = varde[2]?.i || "";
-  let ad = atligDel(x.v + " " + ingr), faktor = 1;
-  x.ad = null; x.lake = null;
+  const ad = atligDel(x.v + " " + ingr);
+  let faktor = 1;
+  x.ad = null; x.lake = null; x.grund = null;
   if (ad < 1) {
-    if (prot != null && prot < 17) { x.ad = -1; }
-    else {
-      const m = ingr.match(/(?:kyckling\w*|klubb\w*|ben|lår\w*|vingar|fläsk\w*|kotlett|karré)[^,(]*?(\d{2,3}(?:[,.]\d+)?)\s*%/i);
-      const lake = m ? parseFloat(m[1].replace(",", ".")) / 100 : 1;
-      faktor = ad * (lake > 0.5 && lake < 1 ? lake : 1);
-      x.ad = ad; x.lake = lake < 1 && lake > 0.5 ? lake : null;
-    }
+    const m = ingr.match(/(?:kyckling\w*|klubb\w*|ben|lår\w*|vingar|fläsk\w*|kotlett|karré)[^,(]*?(\d{2,3}(?:[,.]\d+)?)\s*%/i);
+    const L0 = m ? parseFloat(m[1].replace(",", ".")) / 100 : 1;
+    const L = L0 > 0.5 && L0 < 1 ? L0 : 1;
+    const R = /kyckling|kalkon/i.test(x.v + " " + ingr) ? 18.5 : 19.5;
+    x.ad = ad; x.lake = L < 1 ? L : null;
+    if (prot != null) {
+      const grunder = [["kott", R, L * ad], ["kott+lake", R * L, ad], ["saljs", R * L * ad, 1]].filter((g, i) => !(L === 1 && i === 1));
+      const [namn, , f] = grunder.reduce((bast, g) => Math.abs(prot - g[1]) < Math.abs(prot - bast[1]) ? g : bast);
+      faktor = f; x.grund = namn;
+    } else faktor = L * ad;
   }
   if (prot != null) { x.pk = r2(prot * faktor * 10 / x.kg); x.n = 1; if (x.a == null) x.a = protein(x.v)?.[1] ?? null; if (prot < 5) { x.pk = null; } }
   if (kcal != null) { x.kk = Math.round(kcal * faktor * 10 / x.kg); if (x.c) x.n = 1; }
   return x;
 }
 function slaIhop(lista) { const m = new Map(); for (const x of lista) { const k = [x.v.toLowerCase(), x.e, x.p].join("|"); if (m.has(k)) { if (!m.get(k).b.includes(x.b)) m.get(k).b += " · " + x.b; } else m.set(k, { ...x }); } return [...m.values()]; }
-const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c", "k", "ur", "ad", "lake"];
+const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c", "k", "ur", "ad", "lake", "grund"];
 const packa = lista => lista.map(x => FALT.map(f => x[f] ?? null));
 function behall(lista) { const prot = lista.filter(x => x.pk).sort((a, b) => b.pk - a.pk).slice(0, MAX_PROTEIN); const kolh = lista.filter(x => x.c && x.kk && !x.pk).sort((a, b) => b.kk - a.kk).slice(0, MAX_KOLHYDRAT); prot.push(...kolh); const ovr = lista.filter(x => !x.pk && x.r >= MIN_RABATT).sort((a, b) => b.r - a.r).slice(0, MAX_DEALS); return packa([...prot, ...ovr]); }
 function sokTraffar(lista, s) { const DJURMAT = ["katt", "hund", "foder", "djur"]; return lista.filter(x => x.kg && s.ord.test(x.v) && ![...s.utom, ...DJURMAT].some(u => x.v.toLowerCase().includes(u))).sort((a, b) => a.kg - b.kg).slice(0, 5).map(x => FALT.map(f => x[f] ?? null)); }
@@ -161,7 +166,7 @@ if (location.hostname === "www.ica.se") {
 }
 if (location.hostname === "handlaprivatkund.ica.se") {
   // En sökning i taget med paus emellan, och avbryt direkt om ICA visar sin bot-kontroll.
-  const PAUS_MS = 3000;
+  const PAUS_MS = 8000;
   function icaPost(p, butik) { const pris = tal(p.price?.current?.amount); if (!pris) return null; const ord = tal(p.price?.original?.amount); const lbl = p.price?.unit?.label || ""; const kg = /kg|liter/.test(lbl) ? tal(p.price?.unit?.current?.amount) : null; const x = post(p.name, kr(pris), pris, ord, kg, null, butik + " (online)"); x.id = p.retailerProductId; x.k = "ica:" + p.retailerProductId; x.ur = p.countryOfOrigin || null; x.u = `https://handlaprivatkund.ica.se/stores/${ICA_EHANDEL[butik]}/products/${encodeURIComponent(p.name.toLowerCase().replace(/[^a-z0-9åäö]+/g, "-"))}/${p.retailerProductId}`; return satNaring(x, NARING["ica:" + p.retailerProductId]); }
   function icaNaring(h) {
     const tal1 = re => { const m = h.match(re); return m ? parseFloat(m[1].replace(",", ".")) : null; };

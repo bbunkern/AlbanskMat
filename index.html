@@ -267,7 +267,7 @@
 </div>
 
 <script>
-const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c", "k", "ur", "ad", "lake"];
+const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c", "k", "ur", "ad", "lake", "grund"];
 // "Kyckling från Sverige": när rutan är ikryssad visas bara svensk kyckling – övrigt kött visas som vanligt.
 let baraSvenskKyckling = false;
 try { baraSvenskKyckling = localStorage.getItem("svensk-kyckling") === "1"; } catch (e) {}
@@ -410,7 +410,8 @@ function render() {
         <div class="stapel"><div style="width:${Math.max(4, Math.round(100 * x.pk / bast))}%"></div></div></div>
       <div class="hoger"><div class="stor">${ungefar(x)}${x.pk.toFixed(1)}</div><div class="enhet">g protein/kr</div>
         ${x.kk ? `<div class="kcal">${ungefar(x)}${x.kk}</div><div class="enhet">kcal/kr</div>` : ""}
-        <div class="enhet">${kr(100 / x.pk)}/100 g</div></div>
+        ${x.kg ? `<div class="kcal">${kr(x.kg).replace(" kr", "")}</div><div class="enhet">kr/kg</div>` : ""}
+        <div class="enhet">${kr(100 / x.pk)}/100 g protein</div></div>
     ${radSlut(x)}`).join("") : `<div class="tom">Inga proteinvaror den här dagen.</div>`;
   }
 
@@ -535,8 +536,13 @@ async function visaVara(x) {
     html += `<h3>Näringsvärde per ${esc(info?.b || "100 g")}</h3><div class="kort-ruta"><table class="naringstabell">${rader.map(([n, val]) =>
       `<tr class="${/^protein/i.test(n) ? "mark" : ""}"><td>${esc(n)}</td><td>${esc(val)}</td></tr>`).join("")}</table></div>`;
   }
-  if (x.ad === -1) html += `<h3>Ben</h3><div class="kort-ruta">Varan säljs med ben. Etikettens näringsvärde gäller redan varan som den säljs (med ben och eventuell saltlake), så protein/kr och kcal/kr är inte omräknade.</div>`;
-  else if (x.ad > 0) html += `<h3>Ben${x.lake ? " och saltlake" : ""}</h3><div class="kort-ruta">Varan säljs med ben${x.lake ? ` och är bara ${Math.round(x.lake * 100)} % kyckling/kött (resten är saltlake)` : ""}. Etiketten anger näringsvärdet för bara köttet, så protein/kr och kcal/kr är omräknade med ca ${Math.round(x.ad * 100)} % ätlig del${x.lake ? ` och ${Math.round(x.lake * 100)} % kött` : ""} – ungefär ${Math.round(x.ad * (x.lake || 1) * 100)} % av vikten du betalar för är kött.</div>`;
+  if (x.ad > 0) {
+    const kott = Math.round(x.ad * (x.lake || 1) * 100), proc = v => Math.round(v * 100) + " %";
+    const grund = { kott: "bara köttet (utan ben och utan tillsatt vatten)", "kott+lake": "köttet inklusive tillsatt vatten, men utan ben", saljs: "hela varan som den säljs, med ben" }[x.grund];
+    const omr = { kott: `räknat om med ${x.lake ? proc(x.lake) + " kött (resten är saltlake) och " : ""}ca ${proc(x.ad)} ätlig del`, "kott+lake": `räknat om med ca ${proc(x.ad)} ätlig del`, saljs: "inte räknat om" }[x.grund];
+    html += `<h3>Ben${x.lake ? " och saltlake" : ""}</h3><div class="kort-ruta">Varan säljs med ben${x.lake ? ` och är ${proc(x.lake)} kött` : ""} – ungefär ${kott} % av vikten du betalar för är kött.` +
+      (grund ? ` Etikettens näringsvärde gäller ${grund}, så protein/kr och kcal/kr är ${omr}. Som den säljs: ca ${(x.pk * x.kg / 10).toFixed(1).replace(".", ",")} g protein per 100 g.` : ` Värdet är en uppskattning, omräknat med ätlig del${x.lake ? " och kött-%" : ""}.`) + `</div>`;
+  }
   if (info?.u) html += `<h3>Ursprung</h3><div class="kort-ruta">${esc(info.u)}</div>`;
   if (!info?.i && !rader.length) {
     html += `<h3>Innehåll</h3><div class="kort-ruta">${kallaNamn(x.k) ? "Innehållsförteckningen har inte hämtats än – den kommer med i en av de närmaste skanningarna."
