@@ -304,7 +304,15 @@ if (location.hostname === "www.hemkop.se") {
   ut.poster = behall(hemAlla);
 }
 if (location.hostname === "www.lidl.se") {
-  function lidlPost(d, kravRabatt) { const p = d.price || {}; if (kravRabatt && (!p.discount || !p.oldPrice)) return null; const pris = tal(p.price); if (!pris) return null; const forp = p.packaging?.text || "", bas = (p.basePrice?.text || "").trim(); let kg = null; if (bas.startsWith("/kg")) kg = pris; else if (vikt(forp)) kg = pris / vikt(forp); else if (/kr\/(kg|l)\b/.test(bas)) kg = tal(bas); const e = kr(pris) + (forp ? " / " + forp : "") + (bas.startsWith("/kg") ? "/kg" : ""); const badge = d.stockAvailability?.badgeInfo?.badges?.[0]?.text || ""; const x = post(d.fullTitle || d.title || "", e, pris, tal(p.oldPrice), kg, null, LIDL, badge); if (d.canonicalPath) x.u = "https://www.lidl.se" + d.canonicalPath; x.ur = typeof d.productOrigin === "string" ? d.productOrigin : d.productOrigin?.name || null; return x; }
+  function lidlPost(d, kravRabatt) {
+    // Lidl Plus-varor har priset i d.lidlPlus i stället för d.price. Ta Lidl Plus-priset när det saknas vanligt pris eller när det är lägre.
+    let p = d.price || {}, plus = false, ordPlus = null;
+    const lp = Array.isArray(d.lidlPlus) ? d.lidlPlus.find(x => tal(x?.price?.price)) : null;
+    if (lp && (!tal(p.price) || tal(lp.price.price) < tal(p.price))) {
+      ordPlus = tal(p.price) || tal(lp.price.oldPrice) || tal(((d.keyfacts?.description || "").match(/30-dgrs pris:\s*([\d.,]+)/) || [])[1]);
+      p = { ...lp.price, oldPrice: ordPlus }; plus = true;
+    }
+    if (kravRabatt && (!p.discount || !p.oldPrice)) return null; const pris = tal(p.price); if (!pris) return null; const forp = p.packaging?.text || "", bas = (p.basePrice?.text || "").trim(); let kg = null; if (bas.startsWith("/kg")) kg = pris; else if (vikt(forp)) kg = pris / vikt(forp); else if (/kr\/(kg|l)\b/.test(bas)) kg = tal(bas); const e = kr(pris) + (forp ? " / " + forp : "") + (bas.startsWith("/kg") ? "/kg" : ""); const badge = [plus ? "Lidl Plus" : "", d.stockAvailability?.badgeInfo?.badges?.[0]?.text || ""].filter(Boolean).join(" · "); const x = post(d.fullTitle || d.title || "", e, pris, tal(p.oldPrice), kg, null, LIDL, badge); if (d.canonicalPath) x.u = "https://www.lidl.se" + d.canonicalPath; x.ur = typeof d.productOrigin === "string" ? d.productOrigin : d.productOrigin?.name || null; return x; }
   async function lidlSok(param, krav) { const lista = []; let off = 0, tot = 1; while (off < tot && off < 600) { const j = await fetch(`/q/api/search?assortment=SE&locale=sv_SE&version=v2.0.0&fetchsize=60&offset=${off}&${param}`).then(r => r.json()); tot = j.numFound || 0; if (!j.items?.length) break; off += j.items.length; for (const it of j.items) { const x = lidlPost(it.gridbox?.data || {}, krav); if (x) lista.push(x); } } return lista; }
   await forsok(LIDL, async () => { ut.poster = behall(await lidlSok("category.id=10068374", false)); });
   for (const [rubrik, s] of Object.entries(SOK)) await forsok("Lidl-sök " + s.q, async () => { ut.sok[rubrik] = sokTraffar(await lidlSok("q=" + encodeURIComponent(s.q), false), s); });
