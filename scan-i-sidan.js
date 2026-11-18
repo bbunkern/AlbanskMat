@@ -132,7 +132,11 @@ function satNaring(x, varde) {
     const R = /kyckling|kalkon/i.test(x.v + " " + ingr) ? 18.5 : 19.5;
     x.ad = ad; x.lake = L < 1 ? L : null;
     if (prot != null) {
-      const grunder = [["kott", R, L * ad], ["kott+lake", R * L, ad], ["saljs", R * L * ad, 1]].filter((g, i) => !(L === 1 && i === 1));
+      // Kalorierna avgör vilka grunder som är rimliga: omräknat till rent kött ska det bli 100–260 kcal/100 g
+      // (rå kycklingklubba m. skinn 198 kcal enligt Livsmedelsverket). Ex. Eldorado klubba 190 kcal kan inte gälla varan med ben (= 312 kcal kött).
+      const kottKcal = { kott: 1, "kott+lake": 1 / L, saljs: 1 / (L * ad) };
+      let grunder = [["kott", R, L * ad], ["kott+lake", R * L, ad], ["saljs", R * L * ad, 1]].filter((g, i) => !(L === 1 && i === 1));
+      if (kcal != null) { const rimliga = grunder.filter(g => { const kk = kcal * kottKcal[g[0]]; return kk >= 100 && kk <= 260; }); if (rimliga.length) grunder = rimliga; }
       const [namn, , f] = grunder.reduce((bast, g) => Math.abs(prot - g[1]) < Math.abs(prot - bast[1]) ? g : bast);
       faktor = f; x.grund = namn;
     } else faktor = L * ad;
