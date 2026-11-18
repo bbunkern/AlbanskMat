@@ -107,14 +107,27 @@ function satNaring(x, varde) {
   // Rimlighetskontroll: vissa etiketter anger kJ som kcal (t.ex. 1515 "kcal" per 100 g).
   if (kcal != null && kcal > 900) kcal = kcal / 4.184 <= 900 ? Math.round(kcal / 4.184) : null;
   if (prot != null && (prot < 0 || prot > 95)) prot = null;
-  const ad = atligDel(x.v + " " + (varde[2]?.i || ""));
-  x.ad = ad < 1 ? ad : null;
-  if (prot != null) { x.pk = r2(prot * ad * 10 / x.kg); x.n = 1; if (x.a == null) x.a = protein(x.v)?.[1] ?? null; if (prot < 5) { x.pk = null; } }
-  if (kcal != null) { x.kk = Math.round(kcal * ad * 10 / x.kg); if (x.c) x.n = 1; }
+  // Kött med ben: märkena räknar olika. Ett högt proteinvärde (≥ 17 g, som rent kycklingkött) betyder att etiketten
+  // gäller bara köttet – då räknas både ben och tillsatt saltlake (andelen kött i ingredienserna, t.ex. 87 %) bort.
+  // Ett lägre värde betyder att etiketten redan gäller varan som den säljs, med ben och vatten – då räknas inget om.
+  const ingr = varde[2]?.i || "";
+  let ad = atligDel(x.v + " " + ingr), faktor = 1;
+  x.ad = null; x.lake = null;
+  if (ad < 1) {
+    if (prot != null && prot < 17) { x.ad = -1; }
+    else {
+      const m = ingr.match(/(?:kyckling\w*|klubb\w*|ben|lår\w*|vingar|fläsk\w*|kotlett|karré)[^,(]*?(\d{2,3}(?:[,.]\d+)?)\s*%/i);
+      const lake = m ? parseFloat(m[1].replace(",", ".")) / 100 : 1;
+      faktor = ad * (lake > 0.5 && lake < 1 ? lake : 1);
+      x.ad = ad; x.lake = lake < 1 && lake > 0.5 ? lake : null;
+    }
+  }
+  if (prot != null) { x.pk = r2(prot * faktor * 10 / x.kg); x.n = 1; if (x.a == null) x.a = protein(x.v)?.[1] ?? null; if (prot < 5) { x.pk = null; } }
+  if (kcal != null) { x.kk = Math.round(kcal * faktor * 10 / x.kg); if (x.c) x.n = 1; }
   return x;
 }
 function slaIhop(lista) { const m = new Map(); for (const x of lista) { const k = [x.v.toLowerCase(), x.e, x.p].join("|"); if (m.has(k)) { if (!m.get(k).b.includes(x.b)) m.get(k).b += " · " + x.b; } else m.set(k, { ...x }); } return [...m.values()]; }
-const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c", "k", "ur", "ad"];
+const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c", "k", "ur", "ad", "lake"];
 const packa = lista => lista.map(x => FALT.map(f => x[f] ?? null));
 function behall(lista) { const prot = lista.filter(x => x.pk).sort((a, b) => b.pk - a.pk).slice(0, MAX_PROTEIN); const kolh = lista.filter(x => x.c && x.kk && !x.pk).sort((a, b) => b.kk - a.kk).slice(0, MAX_KOLHYDRAT); prot.push(...kolh); const ovr = lista.filter(x => !x.pk && x.r >= MIN_RABATT).sort((a, b) => b.r - a.r).slice(0, MAX_DEALS); return packa([...prot, ...ovr]); }
 function sokTraffar(lista, s) { const DJURMAT = ["katt", "hund", "foder", "djur"]; return lista.filter(x => x.kg && s.ord.test(x.v) && ![...s.utom, ...DJURMAT].some(u => x.v.toLowerCase().includes(u))).sort((a, b) => a.kg - b.kg).slice(0, 5).map(x => FALT.map(f => x[f] ?? null)); }
