@@ -80,7 +80,17 @@ const r2 = x => (x == null || isNaN(x)) ? null : Math.round(x * 100) / 100;
 function tal(t) { if (t == null) return null; if (typeof t === "number") return t; const m = String(t).match(/\d+(?:[.,:]\d+)?/g); return m ? Math.min(...m.map(s => parseFloat(s.replace(/[,:]/, ".")))) : null; }
 function vikt(t) { if (!t) return null; t = String(t).toLowerCase().replace(/,/g, "."); let m = t.match(/(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*(kg|g|ml|cl|l)\b/), n = 1, q, u; if (m) { n = +m[1]; q = +m[2]; u = m[3]; } else { m = t.match(/(\d+(?:\.\d+)?)\s*(kg|g|ml|cl|l)\b/); if (!m) return null; q = +m[1]; u = m[2]; } const kg = n * q * { kg: 1, l: 1, g: .001, ml: .001, cl: .01 }[u]; return kg > 0 ? kg : null; }
 function jamfor(t) { if (!t) return [null, null]; t = String(t).toLowerCase(); const p = tal(t.split("/")[0]); if (/\/\s*(kg|l\b|liter)/.test(t)) return [p, "kg"]; if (t.includes("/st")) return [p, "st"]; return [p, null]; }
-function protein(namn) { const n = namn.toLowerCase(); if (INTE_MAT.test(n)) return null; for (const [re, g0, anim] of PROTEIN) { if (re.test(n)) { const g = g0 ?? (/kokt|burk|tetra|i vatten|i tomat/.test(n) ? 7 : 21); return g >= 5 ? [g, anim] : null; } } return null; }
+// Baljväxter: torkade ≈ 21 g protein/100 g, kokta/konserverade ≈ 7 g, färdiga bruna bönor i lag ≈ 5 g.
+// Konserver känns igen på ord (burk, saltlag, sås …) och typiska konservvikter (380/410/420/540/560 g).
+function baljvaxt(n) {
+  if (!/linser|kikärt|bönor/.test(n) || /edamame|sojabön/.test(n)) return null;
+  if (/fryst|frysta|djupfryst/.test(n)) return 7;
+  if (/bruna bönor/.test(n) && !/torkad|torr|svenskodlad/.test(n)) return 5;
+  if (/kokt|burk|tetra|i vatten|i tomat|saltlag|(^|[^a-zåäö])lag($|[^a-zåäö])|sås|sirap|färdig|baked|gryta|soppa|röra|hummus|durra/.test(n)) return 7;
+  const m = n.match(/(\d{3})\s*g\b/); if (m && [230, 240, 250, 380, 390, 410, 420, 480, 540, 560].includes(+m[1]) && !/torkad|torr/.test(n)) return 7;
+  return 21;
+}
+function protein(namn) { const n = namn.toLowerCase(); if (INTE_MAT.test(n)) return null; const bv = baljvaxt(n); if (bv != null) return bv >= 5 ? [bv, false] : null; for (const [re, g0, anim] of PROTEIN) { if (re.test(n)) { const g = g0 ?? (/kokt|burk|tetra|i vatten|i tomat/.test(n) ? 7 : 21); return g >= 5 ? [g, anim] : null; } } return null; }
 // Näringsvärden på etiketten gäller 100 g ätlig del (utan ben), men kilopriset gäller hela vikten med ben.
 // Andel ätlig del för rått kött med ben (ungefärliga standardvärden).
 function atligDel(text) {
@@ -94,7 +104,7 @@ function atligDel(text) {
   if (/kotlett|karré med ben|med ben/.test(n)) return 0.82;
   return 1;
 }
-function kalorier(namn) { const n = namn.toLowerCase(); if (INTE_MAT.test(n)) return null; for (const [re, k] of KCAL) if (re.test(n)) return k; return null; }
+function kalorier(namn) { const n = namn.toLowerCase(); if (INTE_MAT.test(n)) return null; const bv = baljvaxt(n); if (bv != null) return bv === 21 ? 340 : bv === 5 ? 100 : 110; for (const [re, k] of KCAL) if (re.test(n)) return k; return null; }
 function post(v, e, p, o, kg, st, b, g = "", i = "") { const r = p && o && o > p ? Math.round(100 * (1 - p / o)) : 0; const pr = protein(v); let pk = null, a = null; if (pr) { if (kg) pk = pr[0] * 10 / kg; else if (st && /ägg/i.test(v)) pk = 7.5 / st; if (pk) a = pr[1]; } const kc = kalorier(v); let kk = null; if (kc) { if (kg) kk = kc * 10 / kg; else if (st && /ägg/i.test(v)) kk = 84 / st; } const ad = atligDel(v); let lake = null; if (ad < 1) { if (/kyckling/i.test(v) && /fryst/i.test(v)) lake = 0.87; const f = ad * (lake || 1); if (pk) pk *= f; if (kk) kk *= f; } return { v, e, p: r2(p), o: r2(o), r, kg: r2(kg), b, g, i, pk: r2(pk), a, kk: kk == null ? null : Math.round(kk), c: arKolhydrat(v) ? 1 : null, ad: ad < 1 ? ad : null, lake }; }
 // Näringsvärden från etiketten (cache: "kalla:id" -> [protein per 100 g, kcal per 100 g]).
 const NARING = (typeof window !== "undefined" && window.__NARING) || await fetch("https://raw.githubusercontent.com/bbunkern/AlbanskMat/main/data/naring.json?t=" + Date.now()).then(r => r.ok ? r.json() : {}).catch(() => ({}));
