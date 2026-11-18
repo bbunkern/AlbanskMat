@@ -104,6 +104,12 @@
   .fel { color: var(--varning); font-size: 12px; margin-top: 18px; }
   .fot { color: var(--svag); font-size: 11.5px; margin-top: 26px; line-height: 1.5; }
   [hidden] { display: none !important; }
+  header { flex-wrap: wrap; }
+  h1 { white-space: nowrap; }
+  @media (max-width: 480px) {
+    .seg[role=tablist] button { display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 12.5px; padding: 7px 2px; white-space: nowrap; }
+    .seg[role=tablist] button .ik { font-size: 17px; line-height: 1.1; }
+  }
   .chip:not(.ica):not(.hemkop):not(.lidl) { background: var(--mjuk); }
   .kort-ruta { background: var(--kort); border-radius: 16px; padding: 14px; }
   .knapp { font: inherit; font-size: 15px; font-weight: 700; padding: 10px 16px; border-radius: 10px; border: 0;
@@ -112,8 +118,11 @@
   .knapp:disabled { opacity: .5; cursor: default; }
   .fota { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 18px;
     border-radius: 14px; background: var(--gron); color: #fff; font-size: 19px; font-weight: 800; cursor: pointer; }
+  .fota-rad { display: flex; gap: 8px; }
+  .fota-rad .fota { flex: 1; }
+  .fota.sekundar { background: var(--linje); color: var(--text); }
   .fota input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-  .fota.upptagen { opacity: .6; pointer-events: none; }
+  .fota.upptagen, .fota-rad.upptagen { opacity: .6; pointer-events: none; }
   .kd-butik { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
   .kd-butik select, .kd-butik input { flex: 1; min-width: 150px; font-size: 15px; padding: 9px 10px; }
   .kd-butik input, .verktyg input[type=password] { font: inherit; border-radius: 10px; border: 1px solid var(--linje);
@@ -151,10 +160,10 @@
 
   <div class="flikar">
     <div class="seg" role="tablist">
-      <button data-flik="protein" class="aktiv">🍽 Vardagsmat</button>
-      <button data-flik="deals">🔥 Bra deals</button>
-      <button data-flik="sok">🔍 Sök</button>
-      <button data-flik="kortdatum">📸 Kortdatum</button>
+      <button data-flik="protein" class="aktiv"><span class="ik">🍽</span> Vardagsmat</button>
+      <button data-flik="deals"><span class="ik">🔥</span> Bra deals</button>
+      <button data-flik="sok"><span class="ik">🔍</span> Sök</button>
+      <button data-flik="kortdatum"><span class="ik">📸</span> Kortdatum</button>
     </div>
   </div>
 
@@ -198,12 +207,18 @@
 
     <div id="kd-innehall" hidden>
       <h2>Fota &amp; logga</h2>
-      <p class="forkl">Fota kortdatumetiketter, hyllkanter eller skyltar. Bilden sparas inte – bara varorna.</p>
+      <p class="forkl">Fota direkt eller välj en bild du redan tagit av kortdatumetiketter, hyllkanter eller skyltar. Bilden sparas inte – bara varorna.</p>
       <div class="kort-ruta">
-        <label class="fota">
-          <input id="kd-fil" type="file" accept="image/*" capture="environment" multiple>
-          <span>📸 Fota</span>
-        </label>
+        <div class="fota-rad">
+          <label class="fota">
+            <input id="kd-fil" type="file" accept="image/*" capture="environment" multiple>
+            <span>📸 Fota</span>
+          </label>
+          <label class="fota sekundar">
+            <input id="kd-bild" type="file" accept="image/*" multiple>
+            <span>🖼 Välj bild</span>
+          </label>
+        </div>
         <div class="kd-butik">
           <select id="kd-butik" aria-label="Butik">
             <option>ICA Roslagstull</option><option>ICA Vanadis</option>
@@ -437,7 +452,7 @@ function visaFlik(f) {
   $("flik-sok").hidden = flik !== "sok";
   if (flik === "sok") setTimeout(() => $("sokruta").focus(), 50);
   const kd = flik === "kortdatum";
-  $("datumval").style.visibility = kd ? "hidden" : "";
+  $("datumval").style.display = kd ? "none" : "";
   $("fel").hidden = kd;
   if (kd) kortdatumStart();
 }
@@ -577,10 +592,10 @@ function krympBild(fil) {
   });
 }
 
-$("kd-fil").onchange = async e => {
+$("kd-fil").onchange = $("kd-bild").onchange = async e => {
   const filer = [...e.target.files]; e.target.value = "";
   if (!filer.length) return;
-  const knapp = $("kd-fil").closest(".fota"); knapp.classList.add("upptagen");
+  const knapp = $("kd-fil").closest(".fota-rad"); knapp.classList.add("upptagen");
   let hittade = 0; const fel = [];
   for (let i = 0; i < filer.length; i++) {
     kdStatus(`Läser av bild ${i + 1} av ${filer.length}…`);
