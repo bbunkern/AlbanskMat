@@ -321,7 +321,7 @@ const arVego = x => kvargOk(x) && (x.a === false || (x.a === true && MEJERI_AGG.
   && !arKolh(x) && (proteinPer100(x) ?? 0) >= MIN_VEGO_PROTEIN;
 const HEL_INTE = /ost|kvarg|keso|cottage|skyr|yoghurt|mjölk|nugget|burgare|bullar|korv|bacon|skinka|kassler|pålägg|pastej|salami|kebab|schnitzel|cordon|panerad|griljerad|fiskpinn|crisp|tempura|krokett|färdig|grillad|kokt|stekt|rökt|gravad|marinerad|i sås|sallad|wrap|pizza|paj|soppa|röra|spread|chorizo|salsiccia|färskkorv|pulled|strimlad.*(stekt|grillad)|kaviar|rom |pudding|dressing|krydd|gryta|lasagne|pasta|piroger|dumplings|gyoza|vår?rull|sushi|rätt|månader|från \d|\d år|stroganoff|risotto|mos|grönsak|tagliatelle|nudlar|spaghetti|pannbiff|mortadella|skivad|deli|port\b|\/1 ?p\b|1p\b|biffar|hamburg|dafgårds|gratäng|buffalo|bbq|teriyaki|glaserad|tikka|tandoori/i;
 const arHel = x => x.a === true && HEL_RA.test(x.v) && !HEL_INTE.test(x.v);
-const INTE_SOK =/chips|mos|gratäng|sås|paj|pudding|katt|hund|sötpotatis|sallad|färs/i;
+const INTE_SOK = /chips|mos|gratäng|sås|paj|pudding|katt|hund|sötpotatis|sallad|färs(?!k)/i;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const kr = x => x == null ? "–" : x.toFixed(2).replace(".", ",") + " kr";
