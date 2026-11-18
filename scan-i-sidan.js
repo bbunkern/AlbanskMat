@@ -126,7 +126,7 @@ function satNaring(x, varde) {
   let faktor = 1;
   x.ad = null; x.lake = null; x.grund = null;
   if (ad < 1) {
-    const m = ingr.match(/(?:kyckling\w*|klubb\w*|ben|lår\w*|vingar|fläsk\w*|kotlett|karré)[^,(]*?(\d{2,3}(?:[,.]\d+)?)\s*%/i);
+    const m = ingr.match(/(?:kyckling\w*|klubb\w*|ben|lår\w*|vingar|fläsk\w*|kotlett|karré)[^,]*?\(?\s*(\d{2,3}(?:[,.]\d+)?)\s*%/i);
     const L0 = m ? parseFloat(m[1].replace(",", ".")) / 100 : 1;
     const L = L0 > 0.5 && L0 < 1 ? L0 : 1;
     const R = /kyckling|kalkon/i.test(x.v + " " + ingr) ? 18.5 : 19.5;
