@@ -39,6 +39,8 @@
   .rad:last-child { border-bottom: 0; }
   .kryss { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; font-weight: 600;
     color: var(--text); cursor: pointer; user-select: none; }
+  .kryssrad { display: flex; flex-wrap: wrap; gap: 0 14px; }
+  .kryssrad .kryss { font-size: 13px; gap: 6px; }
   .kryss input { width: 18px; height: 18px; accent-color: var(--gron); margin: 0; }
   .rad.klickbar { cursor: pointer; }
   .rad.klickbar:hover, .rad.klickbar:active { background: var(--linje); }
@@ -176,7 +178,10 @@
       <button data-typ="vego">🌱 Vegetariskt</button>
       <button data-typ="carbs">🍚 Carbs</button>
     </div>
-    <label class="kryss" id="kryss-svensk"><input type="checkbox" id="svensk-kyckling"> Kyckling från Sverige</label>
+    <div class="kryssrad" id="kryss-hel">
+      <label class="kryss"><input type="checkbox" id="svensk-kyckling"> Kyckling från Sverige</label>
+      <label class="kryss" title="Minst 60 % av kalorierna kommer från protein (minst 0,15 g protein per kcal)"><input type="checkbox" id="magert"> Högt protein, låg kcal</label>
+    </div>
     <h2 id="prot-rubrik">Riktigt kött – protein per krona</h2>
     <p class="forkl" id="prot-forkl">Hela sortimentet i dina butiker – både erbjudanden och ordinarie pris. Högst upp = mest protein för pengarna.</p>
     <div id="protein-lista"></div>
@@ -283,6 +288,12 @@ function arSvensk(x) {
   return SVENSK.test(text) && !UTLANDSK.test(text);
 }
 const kycklingOk = x => !baraSvenskKyckling || !ARKYCKLING.test(x.v) || arSvensk(x);
+// "Högt protein, låga kalorier": minst 60 % av energin från protein, dvs. minst 0,15 g protein per kcal
+// (kycklingfilé ≈ 0,22, fläskytterfilé ≈ 0,18, torsk ≈ 0,23 – lax ≈ 0,10 och fläskfärs ≈ 0,07 faller bort).
+const MIN_PROTEIN_PER_KCAL = 0.15;
+let baraMagert = false;
+try { baraMagert = localStorage.getItem("magert") === "1"; } catch (e) {}
+const magertOk = x => !baraMagert || (x.kk > 0 && x.pk / x.kk >= MIN_PROTEIN_PER_KCAL);
 // Varje rad går att trycka på: då visas innehållsförteckning och näringsvärden i en ruta på sidan.
 let RADER = [];
 const radStart = (x, klass = "") => { RADER.push(x); return `<div class="rad klickbar ${klass}" data-vara="${RADER.length - 1}" role="button" tabindex="0">`; };
@@ -419,7 +430,7 @@ function render() {
         <div class="kcal">${kr(x.kg).replace(" kr", "")}</div><div class="enhet">kr/kg</div></div>
     ${radSlut(x)}`).join("") + flerKnapp(lista.length, allaCarbs) : `<div class="tom">Inga kolhydrater i den här skanningen än.</div>`;
   } else {
-    const prot = d.poster.filter(x => x.pk && (typ === "hel" ? arHel(x) && kycklingOk(x) : arVego(x)))
+    const prot = d.poster.filter(x => x.pk && (typ === "hel" ? arHel(x) && kycklingOk(x) && magertOk(x) : arVego(x)))
                         .sort((a, b) => b.pk - a.pk);
     const allaProt = prot.length; prot.splice(visaAntal);
     const bast = prot[0]?.pk || 1;
@@ -505,10 +516,16 @@ setTimeout(() => visaFlik(location.hash.slice(1)));
 document.querySelectorAll("#proteintyp button").forEach(b => b.onclick = () => {
   typ = b.dataset.typ; visaAntal = 40;
   document.querySelectorAll("#proteintyp button").forEach(x => x.classList.toggle("aktiv", x === b));
-  $("kryss-svensk").hidden = typ !== "hel";
+  $("kryss-hel").hidden = typ !== "hel";
   render();
 });
 document.addEventListener("click", e => { if (e.target.id === "visa-fler") { visaAntal += 40; render(); } });
+$("magert").checked = baraMagert;
+$("magert").onchange = e => {
+  baraMagert = e.target.checked; visaAntal = 40;
+  try { localStorage.setItem("magert", baraMagert ? "1" : "0"); } catch (err) {}
+  render();
+};
 $("svensk-kyckling").checked = baraSvenskKyckling;
 $("svensk-kyckling").onchange = e => {
   baraSvenskKyckling = e.target.checked;
