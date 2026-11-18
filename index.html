@@ -153,6 +153,7 @@
     <div class="seg" role="tablist">
       <button data-flik="protein" class="aktiv">🍽 Vardagsmat</button>
       <button data-flik="deals">🔥 Bra deals</button>
+      <button data-flik="sok">🔍 Sök</button>
       <button data-flik="kortdatum">📸 Kortdatum</button>
     </div>
   </div>
@@ -175,6 +176,13 @@
     <h2>🔎 Mina sökningar</h2>
     <p class="forkl">Billigaste kilopriset i hela sortimentet och bland erbjudandena.</p>
     <div class="sokgrid" id="sok"></div>
+  </section>
+
+  <section id="flik-sok" hidden>
+    <h2>Sök vara</h2>
+    <p class="forkl">Sök bland allt i skanningen – t.ex. lax eller ytterfilé. Billigast kilopris först.</p>
+    <div class="verktyg"><input id="sokruta" type="search" placeholder="Sök vara…" autocomplete="off" enterkeyhint="search"></div>
+    <div id="sok-resultat"></div>
   </section>
 
   <section id="flik-kortdatum" hidden>
@@ -244,7 +252,7 @@
 </div>
 
 <script>
-const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c", "k", "ur"];
+const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c", "k", "ur", "ad"];
 // "Kyckling från Sverige": när rutan är ikryssad visas bara svensk kyckling – övrigt kött visas som vanligt.
 let baraSvenskKyckling = false;
 try { baraSvenskKyckling = localStorage.getItem("svensk-kyckling") === "1"; } catch (e) {}
@@ -390,6 +398,25 @@ function render() {
       ${radSlut(x)}`).join("") : `<div class="tom">Inget hittat.</div>`}</div></div>`;
   }).join("");
 
+  // Sök
+  const fraga = normalisera($("sokruta").value).split(/\s+/).filter(Boolean);
+  if (!fraga.length) $("sok-resultat").innerHTML = `<div class="tom">Skriv vad du letar efter.</div>`;
+  else {
+    const sedda = new Set();
+    const alla = d.poster.concat(Object.values(d.sok).flat()).filter(x => {
+      const k = x.v.toLowerCase() + "|" + x.b + "|" + x.p; if (sedda.has(k)) return false; sedda.add(k);
+      const n = normalisera(x.v); return fraga.every(o => n.includes(o));
+    }).sort((a, b) => (a.kg ?? 1e9) - (b.kg ?? 1e9)).slice(0, 80);
+    $("sok-resultat").className = "lista";
+    $("sok-resultat").innerHTML = alla.length ? alla.map((x, i) => `
+      ${radStart(x, i === 0 && x.kg ? "topp" : "")}
+        <div class="mitt"><div class="namn">${esc(x.v)}</div>${meta(x)}</div>
+        <div class="hoger">${x.kg ? `<div class="kg">${kr(x.kg).replace(" kr", "")} <small>kr/kg</small></div>` : ""}
+          ${x.pk ? `<div class="enhet">${ungefar(x)}${x.pk.toFixed(1)} g protein/kr</div>` : ""}
+          ${x.r ? `<span class="rabatt" style="font-size:12px;padding:3px 6px;margin-top:4px">-${x.r}%</span>` : ""}</div>
+      ${radSlut(x)}`).join("") : `<div class="tom">Inga träffar på "${esc($("sokruta").value)}".</div>`;
+  }
+
   $("fel").innerHTML = d.fel.length ? "⚠ " + d.fel.map(esc).join("<br>⚠ ") : "";
   const s = scans.find(s => s.id === valt);
   $("uppd").textContent = `Scan ${formatera(s.id)}${d.tid ? " kl " + d.tid : ""}`;
@@ -402,11 +429,13 @@ function formatera(id) {
 }
 
 function visaFlik(f) {
-  flik = ["deals", "kortdatum"].includes(f) ? f : "protein";
+  flik = ["deals", "sok", "kortdatum"].includes(f) ? f : "protein";
   document.querySelectorAll(".seg[role=tablist] button").forEach(b => b.classList.toggle("aktiv", b.dataset.flik === flik));
   $("flik-protein").hidden = flik !== "protein";
   $("flik-deals").hidden = flik !== "deals";
   $("flik-kortdatum").hidden = flik !== "kortdatum";
+  $("flik-sok").hidden = flik !== "sok";
+  if (flik === "sok") setTimeout(() => $("sokruta").focus(), 50);
   const kd = flik === "kortdatum";
   $("datumval").style.visibility = kd ? "hidden" : "";
   $("fel").hidden = kd;
@@ -432,6 +461,8 @@ $("svensk-kyckling").onchange = e => {
   try { localStorage.setItem("svensk-kyckling", baraSvenskKyckling ? "1" : "0"); } catch (err) {}
   render();
 };
+const normalisera = t => String(t || "").toLowerCase().replace(/[éèê]/g, "e").replace(/[^a-zåäö0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+$("sokruta").oninput = () => render();
 $("datumval").onchange = async e => { valt = e.target.value; await laddaDag(valt); render(); };
 
 function status(text) { $("status").hidden = !text; $("status").textContent = text || ""; }
@@ -461,6 +492,7 @@ async function visaVara(x) {
     html += `<h3>Näringsvärde per ${esc(info?.b || "100 g")}</h3><div class="kort-ruta"><table class="naringstabell">${rader.map(([n, val]) =>
       `<tr class="${/^protein/i.test(n) ? "mark" : ""}"><td>${esc(n)}</td><td>${esc(val)}</td></tr>`).join("")}</table></div>`;
   }
+  if (x.ad) html += `<h3>Ben</h3><div class="kort-ruta">Varan säljs med ben. Etiketten anger näringsvärde per 100 g ätlig del, så protein/kr och kcal/kr är omräknade med ca ${Math.round(x.ad * 100)} % ätlig del av vikten.</div>`;
   if (info?.u) html += `<h3>Ursprung</h3><div class="kort-ruta">${esc(info.u)}</div>`;
   if (!info?.i && !rader.length) {
     html += `<h3>Innehåll</h3><div class="kort-ruta">${kallaNamn(x.k) ? "Innehållsförteckningen har inte hämtats än – den kommer med i en av de närmaste skanningarna."

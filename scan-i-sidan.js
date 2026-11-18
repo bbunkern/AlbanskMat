@@ -23,7 +23,7 @@ const PROTEIN = [
   [/havregryn|müsli|granola/,12,false],
   [/matvete|^vete\b|bulgur|couscous|quinoa|pasta|spaghetti|makaroner|penne|fusilli|nudlar/,12,false],
   [/kycklingbröst|kycklingfil|innerfil|bröstfil/,23,true],[/kycklinglår|lårfil/,18,true],
-  [/kycklingkorv/,12,true],[/kycklingklubb|kycklingben|kycklingving|hel kyckling|kyckling hel|majskyckling hel|kycklinglår(?!fil)/,15,true],[/kyckling/,18,true],[/kalkon/,21,true],[/tonfisk/,24,true],
+  [/kycklingkorv/,12,true],[/kycklingklubb|kycklingben|kycklingving|hel kyckling|kyckling hel|majskyckling hel|kycklinglår(?!fil)/,19,true],[/kyckling/,18,true],[/kalkon/,21,true],[/tonfisk/,24,true],
   [/kallrökt lax|gravad lax|varmrökt lax|lax.*(kallrökt|gravad|varmrökt)/,21,true],
   [/laxfärs/,15,true],[/\blax|^lax/,20,true],[/torsk|sej|kolja|pollock|fiskfil/,17,true],
   [/räk/,18,true],[/fish ?& ?crisp|fiskpinn|panerad/,12,true],
@@ -81,8 +81,21 @@ function tal(t) { if (t == null) return null; if (typeof t === "number") return 
 function vikt(t) { if (!t) return null; t = String(t).toLowerCase().replace(/,/g, "."); let m = t.match(/(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*(kg|g|ml|cl|l)\b/), n = 1, q, u; if (m) { n = +m[1]; q = +m[2]; u = m[3]; } else { m = t.match(/(\d+(?:\.\d+)?)\s*(kg|g|ml|cl|l)\b/); if (!m) return null; q = +m[1]; u = m[2]; } const kg = n * q * { kg: 1, l: 1, g: .001, ml: .001, cl: .01 }[u]; return kg > 0 ? kg : null; }
 function jamfor(t) { if (!t) return [null, null]; t = String(t).toLowerCase(); const p = tal(t.split("/")[0]); if (/\/\s*(kg|l\b|liter)/.test(t)) return [p, "kg"]; if (t.includes("/st")) return [p, "st"]; return [p, null]; }
 function protein(namn) { const n = namn.toLowerCase(); if (INTE_MAT.test(n)) return null; for (const [re, g0, anim] of PROTEIN) { if (re.test(n)) { const g = g0 ?? (/kokt|burk|tetra|i vatten|i tomat/.test(n) ? 7 : 21); return g >= 5 ? [g, anim] : null; } } return null; }
+// Näringsvärden på etiketten gäller 100 g ätlig del (utan ben), men kilopriset gäller hela vikten med ben.
+// Andel ätlig del för rått kött med ben (ungefärliga standardvärden).
+function atligDel(text) {
+  const n = String(text || "").toLowerCase();
+  if (/benfri|urben|utan ben|filé|file\b|fil\b|innerfil|bröst|strimla|färs(?!k)|lever|hjärta|bitar/.test(n)) return 1;
+  if (/kycklingving|vingar/.test(n) && /kyckling/.test(n)) return 0.55;
+  if (/kycklingklubb|klubba|kycklingben|trumstick|drumstick/.test(n)) return 0.70;
+  if (/kycklinglår|kycklinghalv|lår med (del av )?ryggben/.test(n)) return 0.72;
+  if (/hel kyckling|kyckling hel|majskyckling hel|hel majskyckling|grillkyckling|minikalkon|hel kalkon|kalkon hel/.test(n)) return 0.68;
+  if (/fläsklägg/.test(n)) return 0.65;
+  if (/kotlett|karré med ben|med ben/.test(n)) return 0.82;
+  return 1;
+}
 function kalorier(namn) { const n = namn.toLowerCase(); if (INTE_MAT.test(n)) return null; for (const [re, k] of KCAL) if (re.test(n)) return k; return null; }
-function post(v, e, p, o, kg, st, b, g = "", i = "") { const r = p && o && o > p ? Math.round(100 * (1 - p / o)) : 0; const pr = protein(v); let pk = null, a = null; if (pr) { if (kg) pk = pr[0] * 10 / kg; else if (st && /ägg/i.test(v)) pk = 7.5 / st; if (pk) a = pr[1]; } const kc = kalorier(v); let kk = null; if (kc) { if (kg) kk = kc * 10 / kg; else if (st && /ägg/i.test(v)) kk = 84 / st; } return { v, e, p: r2(p), o: r2(o), r, kg: r2(kg), b, g, i, pk: r2(pk), a, kk: kk == null ? null : Math.round(kk), c: arKolhydrat(v) ? 1 : null }; }
+function post(v, e, p, o, kg, st, b, g = "", i = "") { const r = p && o && o > p ? Math.round(100 * (1 - p / o)) : 0; const pr = protein(v); let pk = null, a = null; if (pr) { if (kg) pk = pr[0] * 10 / kg; else if (st && /ägg/i.test(v)) pk = 7.5 / st; if (pk) a = pr[1]; } const kc = kalorier(v); let kk = null; if (kc) { if (kg) kk = kc * 10 / kg; else if (st && /ägg/i.test(v)) kk = 84 / st; } const ad = atligDel(v); if (ad < 1) { if (pk) pk *= ad; if (kk) kk *= ad; } return { v, e, p: r2(p), o: r2(o), r, kg: r2(kg), b, g, i, pk: r2(pk), a, kk: kk == null ? null : Math.round(kk), c: arKolhydrat(v) ? 1 : null, ad: ad < 1 ? ad : null }; }
 // Näringsvärden från etiketten (cache: "kalla:id" -> [protein per 100 g, kcal per 100 g]).
 const NARING = (typeof window !== "undefined" && window.__NARING) || await fetch("https://raw.githubusercontent.com/bbunkern/AlbanskMat/main/data/naring.json?t=" + Date.now()).then(r => r.ok ? r.json() : {}).catch(() => ({}));
 const nyNaring = {};
@@ -94,12 +107,14 @@ function satNaring(x, varde) {
   // Rimlighetskontroll: vissa etiketter anger kJ som kcal (t.ex. 1515 "kcal" per 100 g).
   if (kcal != null && kcal > 900) kcal = kcal / 4.184 <= 900 ? Math.round(kcal / 4.184) : null;
   if (prot != null && (prot < 0 || prot > 95)) prot = null;
-  if (prot != null) { x.pk = r2(prot * 10 / x.kg); x.n = 1; if (x.a == null) x.a = protein(x.v)?.[1] ?? null; if (prot < 5) { x.pk = null; } }
-  if (kcal != null) { x.kk = Math.round(kcal * 10 / x.kg); if (x.c) x.n = 1; }
+  const ad = atligDel(x.v + " " + (varde[2]?.i || ""));
+  x.ad = ad < 1 ? ad : null;
+  if (prot != null) { x.pk = r2(prot * ad * 10 / x.kg); x.n = 1; if (x.a == null) x.a = protein(x.v)?.[1] ?? null; if (prot < 5) { x.pk = null; } }
+  if (kcal != null) { x.kk = Math.round(kcal * ad * 10 / x.kg); if (x.c) x.n = 1; }
   return x;
 }
 function slaIhop(lista) { const m = new Map(); for (const x of lista) { const k = [x.v.toLowerCase(), x.e, x.p].join("|"); if (m.has(k)) { if (!m.get(k).b.includes(x.b)) m.get(k).b += " · " + x.b; } else m.set(k, { ...x }); } return [...m.values()]; }
-const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c", "k", "ur"];
+const FALT = ["v", "e", "p", "o", "r", "kg", "b", "g", "i", "pk", "a", "kk", "u", "n", "c", "k", "ur", "ad"];
 const packa = lista => lista.map(x => FALT.map(f => x[f] ?? null));
 function behall(lista) { const prot = lista.filter(x => x.pk).sort((a, b) => b.pk - a.pk).slice(0, MAX_PROTEIN); const kolh = lista.filter(x => x.c && x.kk && !x.pk).sort((a, b) => b.kk - a.kk).slice(0, MAX_KOLHYDRAT); prot.push(...kolh); const ovr = lista.filter(x => !x.pk && x.r >= MIN_RABATT).sort((a, b) => b.r - a.r).slice(0, MAX_DEALS); return packa([...prot, ...ovr]); }
 function sokTraffar(lista, s) { const DJURMAT = ["katt", "hund", "foder", "djur"]; return lista.filter(x => x.kg && s.ord.test(x.v) && ![...s.utom, ...DJURMAT].some(u => x.v.toLowerCase().includes(u))).sort((a, b) => a.kg - b.kg).slice(0, 5).map(x => FALT.map(f => x[f] ?? null)); }
