@@ -353,8 +353,24 @@ function data() {
     for (const [rubrik, rader] of Object.entries(s.sok || {})) (sok[rubrik] ||= []).push(...rader.map(tillObj));
     (s.fel || []).forEach(f => fel.push(f));
   }
-  if (d.id === scans[0]?.id) poster.push(...kortdatumSomPoster());
+  if (d.id === scans[0]?.id) poster.push(...kortdatumSomPoster(), ...lidlKvittoSomPoster());
   return { poster, sok, fel, tid: d.data.tid };
+}
+// Lidls fasta sortiment (finns inte på lidl.se): priser avlästa från kvitton, näringsvärden från etikett/Livsmedelsverket.
+let lidlKvitto = null;
+const datumKort = d => new Date(d + "T12:00:00").toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
+function lidlKvittoSomPoster() {
+  if (!lidlKvitto?.varor) return [];
+  return lidlKvitto.varor.map((f, i) => {
+    const kg = f.perkg ? f.pris : f.pris / f.kg, k = "lidlk:" + i;
+    if (naringCache) naringCache[k] = [f.protein, f.kcal, { b: "100 g", u: f.ursprung || null, kalla: f.kalla,
+      t: [["Energi", f.kcal + " kcal"], ["Fett", String(f.fett).replace(".", ",") + " g"], ["Protein", String(f.protein).replace(".", ",") + " g"]] }];
+    const x = { v: f.namn, e: kr(f.pris) + (f.perkg ? "/kg" : ""), p: f.pris, o: null, r: 0, kg, b: lidlKvitto.butik,
+      g: "", i: ["🧾 Kvittopris " + datumKort(f.datum), f.lidlplus ? "Lidl Plus " + kr(f.lidlplus) + (f.perkg ? "/kg" : "") : "", f.info || "", f.vikt_antagen ? "vikt antagen" : ""].filter(Boolean).join(" · "),
+      pk: Math.round(f.protein * 1000 / kg) / 100, a: f.a, kk: Math.round(f.kcal * 10 / kg), u: null, n: f.etikett ? 1 : null, k, ur: f.ursprung || null, lk: f };
+    x.c = KOLH.test(x.v) ? 1 : null;
+    return x;
+  });
 }
 // Dina egna kortdatum-/hyllprisfynd blandas in i alla listor och sökningar (bara när Kortdatum är upplåst på enheten).
 // Med: varor vars bäst före-datum inte har passerat, eller som loggats de senaste 7 dagarna om datum saknas.
@@ -507,7 +523,7 @@ function status(text) { $("status").hidden = !text; $("status").textContent = te
 
 // ---------- Innehållsruta: ingredienser och näringsvärden (skrapade från butikerna) ----------
 let naringCache = null;
-const kallaNamn = k => k?.startsWith("hemkop:") ? "Hemköp" : k?.startsWith("ica:") ? "ICA Handla" : null;
+const kallaNamn = k => k?.startsWith("hemkop:") ? "Hemköp" : k?.startsWith("ica:") ? "ICA Handla" : k?.startsWith("lidlk:") ? "ditt Lidl-kvitto" : null;
 async function visaVara(x) {
   if (x.kd) {
     const f = x.kd;
@@ -556,6 +572,7 @@ async function visaVara(x) {
   } else if (info && !info.i) {
     html += `<h3>Ingredienser</h3><div class="kort-ruta">Butiken anger ingen ingrediensförteckning (ofta en ren råvara).</div>`;
   }
+  if (x.lk) html += `<h3>Källa</h3><div class="kort-ruta">Priset är avläst från ditt kvitto (${esc(x.b)}, ${esc(datumKort(x.lk.datum))})${x.lk.vikt_antagen ? ". Förpackningsvikten står inte på kvittot och är antagen" : ""}. Näringsvärde: ${esc(x.lk.kalla)}.</div>`;
   const kalla = kallaNamn(x.k) || (/^Lidl/.test(x.b) ? "Lidl" : /^ICA/.test(x.b) ? "ICA" : "butiken");
   html += `<div class="kalla">Uppgifter hämtade från ${esc(kalla)}.${x.u && /^https:\/\//.test(x.u) ? ` <a href="${esc(x.u)}" target="_blank" rel="noopener">Öppna hos butiken</a>` : ""}</div>`;
   $("ark-innehall").innerHTML = html;
@@ -763,7 +780,7 @@ async function laddaDag(id) {
 
 (async () => {
   let nar;
-  [senaste, icaonline, nar] = await Promise.all([hamta("data/senaste.json"), hamta("data/icaonline.json"), hamta("data/naring.json")]);
+  [senaste, icaonline, nar, lidlKvitto] = await Promise.all([hamta("data/senaste.json"), hamta("data/icaonline.json"), hamta("data/naring.json"), hamta("data/lidl-kvitto.json")]);
   naringCache = nar || {};
   let dagar = await hamta("data/historik/index.json");
   if (!Array.isArray(dagar)) dagar = [];
